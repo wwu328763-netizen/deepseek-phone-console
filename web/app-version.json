@@ -1,0 +1,6 @@
+{
+    "url": "/phone-console.apk",
+    "versionCode": 119,
+    "versionName": "3.1.9",
+    "notes": "去掉 edge-to-edge，页面不再上下各留一条空白；上传 502 已修（会话目录绑定）"
+}

@@ -1,0 +1,40 @@
+# ---- 运行数据 / 凭据（绝不提交） ----
+console_data/
+*.keystore
+*.jks
+local.properties
+pin.txt
+natapp-disabled.txt
+nope-*
+.upgrade-backup-*/
+uploads/
+.uploads/
+
+# ---- 构建产物 / 依赖 ----
+__pycache__/
+*.pyc
+node_modules/
+.gradle/
+build/
+android-app/.gradle/
+android-app/app/build/
+android-app/build/
+jdk*/
+android-sdk/
+vendor/
+_tools/
+_verify/
+*.exe
+*.dll
+*.so
+*.zip
+
+# ---- 编辑器 / 系统 ----
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.bak
+*.bak-tk

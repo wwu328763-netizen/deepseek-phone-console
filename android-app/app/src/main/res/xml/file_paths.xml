@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- 下载到 getCacheDir() 的新版 APK 需要通过 content:// 交给系统安装器 -->
+    <cache-path name="apk" path="." />
+    <cache-path name="cache" path="apk/" />
+    <files-path name="files" path="." />
+</paths>

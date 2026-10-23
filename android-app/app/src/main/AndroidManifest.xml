@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Gradle 版清单：包名/版本号/uses-sdk 全部由 app/build.gradle.kts 提供，
+  这里不能再写 package= 与 android:versionCode（AGP 8 会直接报错）。
+  组件声明与原 android/AndroidManifest.xml 严格一致。
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- 实时扫码要相机；声明成可选(required=false)，没相机的设备也能装（会自动退回拍照识别） -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+
+    <application
+        android:label="@string/app_name"
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true"
+        android:allowBackup="true"
+        android:supportsRtl="false"
+        android:hardwareAccelerated="true"
+        android:theme="@android:style/Theme.Material.Light.NoActionBar">
+
+        <activity
+            android:name="com.home.phoneconsole.SetupActivity"
+            android:label="@string/app_name"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize|uiMode" />
+
+        <activity
+            android:name="com.home.phoneconsole.MainActivity"
+            android:label="@string/app_name"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:windowSoftInputMode="adjustResize"
+            android:configChanges="orientation|screenSize|keyboardHidden">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- 实时扫码页：相机预览 + 逐帧解码（Camera1 + 内置 ZXing） -->
+        <activity
+            android:name="com.home.phoneconsole.ScannerActivity"
+            android:label="@string/app_name"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@android:style/Theme.Material.NoActionBar"
+            android:configChanges="orientation|screenSize|keyboardHidden" />
+
+        <!-- 自实现的极简 FileProvider（不引入 androidx），只暴露 cache/apk/ 下的 APK -->
+        <provider
+            android:name="com.home.phoneconsole.ApkProvider"
+            android:authorities="com.home.phoneconsole.apk"
+            android:exported="false"
+            android:grantUriPermissions="true" />
+
+        <!-- 扫码用：可写的极简 FileProvider，只暴露 cache/qr/，供系统相机写入二维码照片 -->
+        <provider
+            android:name="com.home.phoneconsole.QrImageProvider"
+            android:authorities="com.home.phoneconsole.qr"
+            android:exported="false"
+            android:grantUriPermissions="true" />
+    </application>
+</manifest>

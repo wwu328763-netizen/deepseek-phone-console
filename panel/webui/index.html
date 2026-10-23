@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>手机远程控制台</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-theme="dark">
+
+<div class="ambient" aria-hidden="true"></div>
+
+<!-- 开屏动画（boot 完成后淡出） -->
+<div class="splash" id="splash" aria-hidden="true">
+  <div class="splash-grid"></div>
+  <div class="splash-inner">
+    <div class="splash-mark-wrap">
+      <img class="splash-mark" src="icon.png" alt="">
+      <span class="splash-ring"></span>
+      <span class="splash-ring d2"></span>
+    </div>
+    <div class="splash-title">手机远程控制台</div>
+    <div class="splash-sub">DESKTOP CONSOLE · WEBVIEW2</div>
+    <div class="splash-bar"><i></i></div>
+  </div>
+</div>
+
+<div id="app">
+  <!-- 左侧图标导航轨 -->
+  <aside class="rail">
+    <img class="mark" src="icon.png" alt="手机远程控制台" title="手机远程控制台">
+    <nav class="rail-nav">
+      <button class="rail-btn active" data-view="status" title="运行状态">
+        <svg viewBox="0 0 24 24"><path d="M4 5h16v11H4z"/><path d="M9 20h6M12 16v4"/></svg>
+        <em>状态</em>
+      </button>
+      <button class="rail-btn" data-view="usage" title="用量统计">
+        <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9h-9z"/></svg>
+        <em>用量</em>
+      </button>
+      <button class="rail-btn" data-view="logs" title="运行日志">
+        <svg viewBox="0 0 24 24"><path d="M5 6h14M5 12h14M5 18h9"/></svg>
+        <em>日志</em>
+      </button>
+      <button class="rail-btn" data-view="about" title="关于">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
+        <em>关于</em>
+      </button>
+    </nav>
+    <button class="rail-btn ghost" id="btnDataDir" title="打开数据目录">
+      <svg viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v10H3z"/></svg>
+      <em>目录</em>
+    </button>
+  </aside>
+
+  <main class="stage">
+    <!-- 顶栏 -->
+    <header class="chrome">
+      <div class="chrome-title">
+        <h1>手机远程控制台</h1>
+        <span class="badge-dsh">DSH 版</span>
+      </div>
+      <div class="chrome-right">
+        <span class="chip" id="pillServer"><i></i>检测中</span>
+        <span class="chip" id="pillTunnel"><i></i>检测中</span>
+        <button class="icon-btn" id="btnCopy" title="复制访问地址">
+          <svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5h10"/></svg>
+        </button>
+        <button class="icon-btn" id="btnOpen" title="在浏览器打开手机页">
+          <svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v5H5V6h5"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="scroll">
+      <!-- ── 运行状态 ── -->
+      <section id="viewStatus" class="view">
+        <div class="phase-banner" id="phaseBanner" data-kind="idle">
+          <span class="pb-dot" aria-hidden="true"></span>
+          <span class="pb-spin" aria-hidden="true"></span>
+          <span class="pb-text" id="pbText">就绪</span>
+          <span class="pb-sec mono" id="pbSec">0.0s</span>
+          <span class="pb-bar" aria-hidden="true"><i></i></span>
+        </div>
+        <div class="bento">
+          <!-- hero -->
+          <article class="tile hero">
+            <span class="hero-pulse" aria-hidden="true"></span>
+            <span class="hero-pulse d2" aria-hidden="true"></span>
+            <span class="hero-pulse d3" aria-hidden="true"></span>
+            <div class="hero-top">
+              <span class="eyebrow">手机访问地址</span>
+              <span class="hero-state" id="heroState">已停止</span>
+            </div>
+            <div class="url-row">
+              <code class="url" id="heroUrl">还没有可用地址</code>
+              <button class="copy-inline" id="btnCopy2" title="复制地址">
+                <svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5h10"/></svg>
+              </button>
+            </div>
+            <p class="hero-note" id="heroNote">端口 8787 · 未运行</p>
+            <div class="hero-meta">
+              <span class="hm"><em>PIN</em><b class="mono" id="heroPin">—</b></span>
+              <span class="hm"><em>局域网</em><b class="mono" id="heroLan">—</b></span>
+              <span class="hm"><em>对接</em><b class="mono" id="heroDsh">—</b></span>
+            </div>
+            <p class="hero-tip">手机无需安装 App —— 扫码或直接打开链接即可进入（PIN 已写在链接里）</p>
+            <div class="actions">
+              <button class="btn primary" id="btnStart">
+                <svg viewBox="0 0 24 24"><path d="M8 5l11 7-11 7z"/></svg><span class="btn-label">启动</span>
+              </button>
+              <button class="btn" id="btnStop">
+                <svg viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="1.5"/></svg><span class="btn-label">停止</span>
+              </button>
+              <button class="btn ghost" id="btnTunnel">只启动隧道</button>
+              <button class="btn ghost" id="btnRestart">重启隧道</button>
+            </div>
+          </article>
+
+          <!-- 二维码 -->
+          <article class="tile qr">
+            <div class="qr-glow" aria-hidden="true"></div>
+            <span class="eyebrow">手机扫码连接</span>
+            <div class="qr-stage">
+              <div class="qr-box empty" id="qrBox"><span>启动后显示</span></div>
+            </div>
+            <p class="qr-cap" id="qrUrl">—</p>
+            <p class="qr-hint">用手机相机扫码</p>
+          </article>
+
+          <!-- 四个小指标 -->
+          <article class="tile stat">
+            <div class="stat-head"><span class="stat-ico"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span><span class="eyebrow">服务</span></div>
+            <b class="stat-num" id="stServer">—</b>
+            <span class="stat-sub" id="stServerSub">端口 8787</span>
+          </article>
+          <article class="tile stat">
+            <div class="stat-head"><span class="stat-ico"><svg viewBox="0 0 24 24"><path d="M6.5 18a4.5 4.5 0 0 1 .7-8.95A5.5 5.5 0 0 1 17.8 10.6 3.7 3.7 0 0 1 17.5 18z"/></svg></span><span class="eyebrow">隧道</span></div>
+            <b class="stat-num" id="stTunnel">—</b>
+            <span class="stat-sub" id="stTunnelSub">cloudflared</span>
+          </article>
+          <article class="tile stat">
+            <div class="stat-head"><span class="stat-ico"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/></svg></span><span class="eyebrow">对接目标</span></div>
+            <b class="stat-word" id="stDsh">—</b>
+            <span class="stat-sub">DSH 会话</span>
+          </article>
+          <article class="tile stat">
+            <div class="stat-head"><span class="stat-ico"><svg viewBox="0 0 24 24"><path d="M4 9.5a13 13 0 0 1 16 0M7 13a8.5 8.5 0 0 1 10 0M9.8 16.3a4 4 0 0 1 4.4 0"/><circle cx="12" cy="19.5" r="1"/></svg></span><span class="eyebrow">局域网</span></div>
+            <b class="stat-word mono" id="stLan">—</b>
+            <span class="stat-sub">同一 Wi-Fi 可直接访问</span>
+          </article>
+
+          <!-- 最近事件 -->
+          <article class="tile events">
+            <div class="tile-head">
+              <span class="eyebrow">最近事件</span>
+              <button class="text-btn" data-goto="logs">全部日志 →</button>
+            </div>
+            <div class="event-list" id="eventList"></div>
+          </article>
+
+
+          <!-- 快捷操作 -->
+          <article class="tile quick">
+            <span class="eyebrow">快捷操作</span>
+            <div class="quick-list">
+              <button class="quick-item" id="btnSaveAddr">
+                <span class="qi-ico"><svg viewBox="0 0 24 24"><path d="M12 3v12M8 11l4 4 4-4"/><path d="M5 21h14"/></svg></span>
+                <span><b>保存手机地址</b><em>写入 console_data/phone-address.txt</em></span>
+              </button>
+              <button class="quick-item" id="btnOpenPage">
+                <span class="qi-ico"><svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v5H5V6h5"/></svg></span>
+                <span><b>在浏览器打开</b><em>用电脑浏览器预览手机页面</em></span>
+              </button>
+              <button class="quick-item" id="btnOpenData">
+                <span class="qi-ico"><svg viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v10H3z"/></svg></span>
+                <span><b>打开数据目录</b><em>进程、日志、PIN、地址都在这里</em></span>
+              </button>
+              <button class="quick-item" data-goto="usage">
+                <span class="qi-ico"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9h-9z"/></svg></span>
+                <span><b>用量统计</b><em>缓存命中率、每日用量与官网消耗</em></span>
+              </button>
+            </div>
+          </article>
+        </div>
+
+      </section>
+
+      <!-- ── 用量统计 ── -->
+      <section id="viewUsage" class="view" hidden>
+        <div class="bento">
+          <article class="tile wide usage-tool">
+            <div class="tool-row">
+              <div class="seg" id="rangeSeg"></div>
+              <div class="custom-range" id="customRange" hidden>
+                <input type="date" id="dFrom"><span class="arrow">→</span>
+                <input type="date" id="dTo">
+                <button class="btn ghost sm" id="btnApplyRange">应用</button>
+              </div>
+              <div class="grow"></div>
+              <button class="btn ghost" id="btnUsageImport">导入用量文件</button>
+              <button class="btn ghost" id="btnUsagePull">拉取官网</button>
+              <button class="btn" id="btnToken">Token 设置</button>
+            </div>
+          </article>
+
+          <article class="tile stat">
+            <div class="stat-head"><span class="stat-ico"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9"/><path d="M12 12l6-6"/></svg></span><span class="eyebrow">缓存命中率</span></div>
+            <b class="stat-num ok" id="uRate">—</b>
+            <span class="stat-sub" id="uRateSub">命中 ÷（命中 + 未命中）</span>
+          </article>
+          <article class="tile stat">
+            <div class="stat-head"><span class="stat-ico"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg></span><span class="eyebrow">命中缓存</span></div>
+            <b class="stat-num" id="uHit">—</b>
+            <span class="stat-sub">tokens</span>
+          </article>
+          <article class="tile stat">
+            <div class="stat-head"><span class="stat-ico"><svg viewBox="0 0 24 24"><path d="M12 4v16M6 10l6-6 6 6"/></svg></span><span class="eyebrow">未命中</span></div>
+            <b class="stat-num" id="uMiss">—</b>
+            <span class="stat-sub">tokens</span>
+          </article>
+          <article class="tile stat">
+            <div class="stat-head"><span class="stat-ico"><svg viewBox="0 0 24 24"><path d="M12 20V4M6 14l6 6 6-6"/></svg></span><span class="eyebrow">输出</span></div>
+            <b class="stat-num" id="uOut">—</b>
+            <span class="stat-sub">tokens</span>
+          </article>
+
+          <article class="tile donut-tile">
+            <span class="eyebrow">用量构成</span>
+            <div class="donut-wrap"><div id="donut"></div></div>
+            <div class="legend" id="donutLegend"></div>
+          </article>
+
+          <article class="tile trend-tile">
+            <div class="tile-head">
+              <span class="eyebrow">每日用量</span>
+              <span class="mono muted" id="trendRange">—</span>
+            </div>
+            <div class="trend-wrap" id="trend"></div>
+          </article>
+
+          <article class="tile wide usage-meta">
+            <div class="meta-row">
+              <span>来源 <b id="uSource">—</b></span>
+              <span>覆盖 <b id="uCoverage">—</b></span>
+              <span>请求 <b id="uReq">—</b></span>
+              <span>官网消耗 <b id="uCost">—</b></span>
+              <span>Token <b id="uToken">—</b></span>
+              <button class="text-btn" id="btnTopup">去充值 →</button>
+            </div>
+            <div class="hint" id="uHint"></div>
+          </article>
+
+          <article class="tile wide usage-days">
+            <div class="tile-head">
+              <span class="eyebrow">最近 7 天明细</span>
+              <span class="mono muted" id="uDetailRange"></span>
+            </div>
+            <div class="table-wrap">
+              <table id="uTable">
+                <thead><tr><th>日期</th><th>命中缓存</th><th>未命中</th><th>输出</th><th>请求</th><th>合计</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- ── 日志 ── -->
+      <section id="viewLogs" class="view" hidden>
+        <div class="bento">
+          <article class="tile wide logs-tile">
+            <div class="tile-head">
+              <span class="eyebrow">运行日志</span>
+              <button class="text-btn" id="btnClearLogs">清空</button>
+            </div>
+            <div class="logs" id="logs"></div>
+          </article>
+        </div>
+      </section>
+
+      <!-- ── 关于 ── -->
+      <section id="viewAbout" class="view" hidden>
+        <div class="bento">
+          <article class="tile wide about">
+            <span class="eyebrow">关于</span>
+            <h2>手机远程控制台 · 电脑端管理面板</h2>
+            <p class="mono muted" id="aboutBuild">界面 v3.12 · 启动/停止动画</p>
+            <p>WebView2 / pywebview 界面，与旧的 Tkinter 窗口（gui.pyw）共用 <code>console_core.py</code> 核心层。</p>
+            <p class="muted">旧的 Tk 窗口仍保留可用；本面板是独立入口，随时可回退。</p>
+          </article>
+        </div>
+      </section>
+    </div>
+
+    <footer class="status-bar">
+      <span class="status-dot" id="statusDot"></span>
+      <span class="status-text" id="statusText">就绪</span>
+      <div class="progress"><i id="bar"></i></div>
+      <span class="grow"></span>
+      <span class="sb-meta">PIN <b class="mono" id="psPin">—</b></span>
+      <span class="sb-dot"></span>
+      <span class="sb-meta mono ps-dir" id="psDir">—</span>
+      <span class="sb-dot"></span>
+      <span class="clock mono" id="clock"></span>
+    </footer>
+  </main>
+</div>
+
+<div class="modal" id="tokenModal" hidden>
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3>官网 Token（自动拉取用量）</h3>
+      <button class="text-btn" id="btnTokClose">关闭</button>
+    </div>
+    <p class="modal-hint">把官网登录 token 粘到这里（只填一次，之后可一键「拉取官网」更新用量）。<br>
+      获取：浏览器登录 platform.deepseek.com → F12 控制台 → 粘贴执行
+      <code>copy(localStorage.getItem('userToken')||localStorage.getItem('token')||'')</code>，
+      再点下面的「从剪贴板」。</p>
+    <input type="password" id="tokenInput" placeholder="粘贴 userToken（长度 &gt; 20）" spellcheck="false">
+    <div class="modal-actions">
+      <button class="btn ghost" id="btnTokPaste">从剪贴板</button>
+      <button class="btn ghost" id="btnTokOpen">打开官网</button>
+      <button class="btn primary" id="btnTokSave">验证并保存</button>
+      <button class="btn danger" id="btnTokClear">清除</button>
+    </div>
+    <div class="tok-state" id="tokState"></div>
+  </div>
+</div>
+<div class="toasts" id="toasts"></div>
+<script src="app.js"></script>
+<script src="usage.js"></script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+name: smoke
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  python-syntax:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile
+        run: python -m py_compile server.py console_core.py dsh_client.py sessions.py
+      - name: Assets exist
+        run: |
+          if (!(Test-Path web/app/app.js)) { throw 'web/app/app.js missing' }
+          if (!(Test-Path dist)) { throw 'dist missing' }

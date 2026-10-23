@@ -1,0 +1,3225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="theme-color" content="#E6E6E6">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="远程控制台">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" href="/icons/favicon.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<title>手机远程控制台</title>
+<style>
+/* ============================================================
+   手机远程控制台 · 手机端 UI
+   配色：深蓝底 + 绿主色（#3FBF7F）；支持背景图透明度调节
+   ============================================================ */
+:root {
+  --bg: #12141C; --panel: #1B1F2B; --panel2: #232838; --border: #2E3446;
+  --text: #EDF1F7; --muted: #8C96AB;
+  --accent: #3FBF7F; --accent-2: #2E9B66; --accent-soft: rgba(63,191,127,.12);
+  --green: #3FBF7F; --red: #E5534B; --yellow: #E6B84C;
+  --radius: 14px; --radius-lg: 20px;
+  --shadow: 0 6px 22px rgba(0,0,0,.35);
+  --bubble-alpha: 0.9;
+  --sa-b: env(safe-area-inset-bottom, 0px);
+  --sa-t: env(safe-area-inset-top, 0px);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+/* 应用外壳跟随视口；整页不滚动（只有聊天区内部滚动），输入栏不会被挤出屏幕。
+   全屏时再由 syncAppHeight() 按真实可视高度锁定。 */
+html, body { height: 100%; overflow: hidden; }
+body {
+  background: linear-gradient(180deg, #161926 0%, #101320 100%);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+  font-size: 15px; line-height: 1.6;
+  -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+button, input, textarea, select { font: inherit; color: inherit; }
+button {
+  cursor: pointer; border: 1px solid transparent; background: var(--panel2);
+  border-radius: 11px; padding: 9px 14px; transition: .16s ease;
+}
+button:hover { background: #2A3043; }
+button:active { transform: scale(.97); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button.primary {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #fff; font-weight: 600; border: none;
+  box-shadow: 0 4px 14px rgba(63,191,127,.28);
+}
+input, textarea, select {
+  background: var(--panel2); border: 1px solid var(--border); border-radius: 11px;
+  padding: 11px 13px; width: 100%; outline: none; transition: .16s ease;
+}
+input::placeholder, textarea::placeholder { color: #6B7488; }
+input:focus, textarea:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb { background: #39405480; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #4A5268; }
+
+/* ---------------- 登录 / 连接页（浅色卡片式，与主界面统一） ---------------- */
+#login {
+  position: fixed; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: calc(28px + var(--sa-t)) 22px calc(56px + var(--sa-b));
+  background: linear-gradient(180deg, #F3F3F3 0%, #E3E3E3 100%);
+  z-index: 50; overflow-y: auto;
+}
+#login .card {
+  width: 100%; max-width: 350px; background: #FFFFFF; border-radius: 20px;
+  padding: 26px 20px 20px; box-shadow: 0 12px 32px rgba(0,0,0,.10), 0 1px 2px rgba(0,0,0,.04);
+  display: flex; flex-direction: column; align-items: center;
+}
+#login img.app-icon {
+  width: 76px; height: 76px; border-radius: 20px;
+  box-shadow: 0 8px 20px rgba(7,193,96,.22);
+}
+#login h1 { font-size: 20px; font-weight: 700; color: #111111; margin: 14px 0 4px; letter-spacing: .01em; }
+#login p.sub { color: #8A8A8E; font-size: 13px; text-align: center; line-height: 1.5; margin: 0; }
+#login .host-chip {
+  margin-top: 12px; padding: 5px 12px; border-radius: 999px; background: #F2F2F2;
+  color: #6B6B70; font-size: 11.5px; max-width: 100%; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+}
+#login form { width: 100%; margin-top: 18px; display: flex; flex-direction: column; gap: 12px; }
+#login .pin-wrap { position: relative; }
+#login input#pinInput {
+  width: 100%; height: 54px; box-sizing: border-box; border-radius: 14px;
+  border: 1.5px solid #E3E3E3; background: #F7F7F7; color: #111;
+  text-align: center; font-size: 22px; font-weight: 600;
+  letter-spacing: .42em; text-indent: .42em;
+  transition: border-color .15s, box-shadow .15s, background .15s;
+}
+#login input#pinInput::placeholder {
+  font-size: 14px; letter-spacing: 0; text-indent: 0; font-weight: 400; color: #B2B2B2;
+}
+#login input#pinInput:focus {
+  outline: none; border-color: #07C160; background: #FFFFFF;
+  box-shadow: 0 0 0 4px rgba(7,193,96,.12);
+}
+/* 注意：这里用 has-err 而不是 err —— 下面的错误提示胶囊才是 .err（display:none），
+   若外层也叫 err 会连输入框一起被隐藏（踩过一次：输入框 rect 变 0×0） */
+#login .pin-wrap.has-err input#pinInput { border-color: #E5534B; box-shadow: 0 0 0 4px rgba(229,83,75,.10); }
+#login .pin-eye {
+  position: absolute; right: 5px; top: 50%; transform: translateY(-50%);
+  width: 44px; height: 44px; border: 0; background: none; color: #9A9A9A;
+  font-size: 17px; border-radius: 12px; cursor: pointer;
+}
+#login button.primary {
+  width: 100%; height: 50px; border: 0; border-radius: 14px;
+  font-size: 16.5px; font-weight: 600; color: #FFFFFF;
+  background: linear-gradient(180deg, #0AD16B, #07C160);
+  box-shadow: 0 4px 12px rgba(7,193,96,.20); cursor: pointer;
+  transition: transform .08s, box-shadow .15s, opacity .15s;
+}
+#login button.primary:active { transform: translateY(1px) scale(.995); box-shadow: 0 2px 8px rgba(7,193,96,.18); }
+#login button.primary[disabled] { opacity: .72; }
+#login .err {
+  display: none; align-items: flex-start; gap: 8px;
+  background: #FEF1F0; border: 1px solid #F7D8D5; color: #C0392B;
+  border-radius: 12px; padding: 10px 12px; font-size: 12.5px; line-height: 1.5;
+}
+#login .err.show { display: flex; }
+#login .foot { margin-top: 16px; color: #A6A6AA; font-size: 11.5px; text-align: center; line-height: 1.6; }
+#login .foot b { color: #7A7A80; font-weight: 600; }
+#login .ver {
+  position: fixed; left: 0; right: 0; bottom: calc(14px + var(--sa-b));
+  text-align: center; color: #B4B4B8; font-size: 11px; letter-spacing: .08em;
+}
+@keyframes login-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-7px); } 40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); } 80% { transform: translateX(3px); }
+}
+#login .pin-wrap.shake { animation: login-shake .38s ease; }
+#login .spin {
+  display: inline-block; width: 15px; height: 15px; margin-right: 8px; vertical-align: -2px;
+  border: 2px solid rgba(255,255,255,.5); border-top-color: #FFFFFF; border-radius: 50%;
+  animation: login-spin .7s linear infinite;
+}
+@keyframes login-spin { to { transform: rotate(360deg); } }
+
+/* ---------------- 顶栏 ---------------- */
+#app { display: none; flex-direction: column; height: 100%; }
+/* 真全屏时根元素全屏。背板颜色**必须跟当前主题**：
+   原来写死成深色渐变（#161926->#101320），浅色主题下全屏时浏览器状态栏/刘海
+   那条缝会露出这层深色 —— 真机表现就是"顶部一条黑边"。用 --wx-base 后无缝。 */
+:fullscreen, :-webkit-full-screen, body:-webkit-full-screen {
+  background: var(--wx-base);
+}
+header .icon-btn.on { color: var(--accent); background: var(--accent-soft); }
+#toast {
+  position: fixed; left: 50%; bottom: calc(104px + var(--sa-b));
+  transform: translate(-50%, 14px); max-width: 86vw; z-index: 60;
+  background: rgba(35,40,56,.97); border: 1px solid var(--border); color: var(--text);
+  padding: 11px 15px; border-radius: 13px; font-size: 13px; line-height: 1.5;
+  text-align: center; white-space: pre-line; box-shadow: var(--shadow);
+  opacity: 0; pointer-events: none; transition: opacity .2s ease, transform .2s ease;
+}
+#toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* 全屏（浏览器界面已隐藏）时的布局修正：
+   1) 状态栏没有了，顶部再留整块安全区就成了大片空白 —— 只保留一点点防刘海；
+   2) 输入框贴到屏幕最下沿会显得太靠下、还容易被手势条压住 —— 抬高一点。 */
+body.fs header { padding-top: max(8px, calc(var(--sa-t) - 28px)); }
+body.fs #sidebar { padding-top: max(8px, calc(var(--sa-t) - 28px)); }
+body.fs #composer { padding-bottom: max(34px, var(--sa-b)); }
+body.fs #toBottom { bottom: calc(73px + max(34px, var(--sa-b))); }
+body.fs #toast { bottom: calc(93px + max(34px, var(--sa-b))); }
+header {
+  display: flex; align-items: center; gap: 8px;
+  padding: calc(9px + var(--sa-t)) 12px 9px;
+  /* 底边与聊天区（背景图 + 30% 暗色）同底色渐隐，避免出现一条亮度不一样的分界线 */
+  background: linear-gradient(180deg, rgba(20,23,33,.86) 0%, rgba(20,23,33,.60) 62%, rgba(16,19,28,.30) 100%);
+  border-bottom: none;
+  position: sticky; top: 0; z-index: 10; flex: none;
+}
+header .icon-btn {
+  background: transparent; border: 1px solid transparent; border-radius: 10px;
+  width: 36px; height: 36px; padding: 0; display: inline-flex;
+  align-items: center; justify-content: center; font-size: 16px; color: var(--text);
+  flex: none; position: relative;
+}
+header .icon-btn:hover { background: var(--panel2); }
+header #newBtn { flex: none; padding: 8px 13px; font-size: 13px; border-radius: 11px; }
+header .title {
+  font-weight: 650; font-size: 15px; flex: 1; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.status-pill {
+  display: inline-flex; align-items: center; gap: 6px; flex: none;
+  background: var(--panel2); border: 1px solid var(--border);
+  border-radius: 999px; padding: 3px 9px 3px 8px;
+  font-size: 11px; color: var(--muted);
+}
+.status-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: #5A6376; display: inline-block; flex: none; }
+.status-pill .dot.run { background: var(--green); animation: pulse 1.3s infinite; box-shadow: 0 0 0 3px rgba(63,191,127,.18); }
+@keyframes pulse { 50% { opacity: .35; } }
+#verBadge {
+  font-size: 10px; color: var(--muted); background: var(--panel2);
+  border: 1px solid var(--border); border-radius: 6px; padding: 1px 5px; flex: none; opacity: .85;
+}
+/* ---------------- 布局 ---------------- */
+#layout { display: flex; flex: 1; min-height: 0; }
+/* ---------------- 侧栏（DSH 风格：紧凑单行 = 状态点 + 名称 + 相对时间） ---------------- */
+#sidebar {
+  width: 262px; min-width: 262px; background: var(--panel);
+  border-right: 1px solid var(--border); overflow-y: auto;
+  padding: 8px 8px calc(14px + var(--sa-b));
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+}
+#sideTabs {
+  display: flex; gap: 2px; margin-bottom: 4px; padding: 3px;
+  background: var(--panel2); border-radius: 9px; border: 1px solid var(--border);
+}
+.stab {
+  flex: 1; padding: 6px 4px; font-size: 12.5px; font-weight: 600; border-radius: 7px;
+  background: transparent; color: var(--muted); border: none;
+}
+.stab.active { background: var(--srow-active); color: var(--text); box-shadow: none; }
+.side-sec {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 7px 6px; font-size: 11px; color: var(--muted); letter-spacing: .05em;
+}
+.side-sec .cnt { font-size: 10.5px; opacity: .8; }
+.side-empty { color: var(--muted); font-size: 12.5px; padding: 4px 8px 6px; }
+.thread-item {
+  display: flex; align-items: center; gap: 8px;
+  height: 34px; padding: 0 4px 0 8px;
+  border-radius: 8px; background: transparent; border: none;
+  cursor: pointer; transition: background .12s ease;
+}
+.thread-item:hover { background: var(--srow-hover); }
+.thread-item.active { background: var(--srow-active); }
+.thread-item .dot {
+  width: 6px; height: 6px; border-radius: 50%; flex: none;
+  background: var(--muted); opacity: .5;
+}
+.thread-item.running .dot {
+  background: var(--green); opacity: 1; box-shadow: 0 0 0 3px rgba(7,193,96,.16);
+}
+.thread-item .sname {
+  flex: 1; min-width: 0; font-size: 13.5px; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.thread-item.active .sname { font-weight: 600; }
+.thread-item .stime { flex: none; font-size: 11px; color: var(--muted); }
+.thread-item .tlegacy {
+  flex: none; font-size: 10px; color: var(--yellow);
+  border: 1px solid var(--yellow); border-radius: 4px; padding: 0 3px; opacity: .85;
+}
+.thread-item .sdel {
+  flex: none; width: 20px; height: 20px; padding: 0; border: none;
+  background: none; color: var(--muted); border-radius: 6px;
+  font-size: 12px; line-height: 1; opacity: .35; transition: opacity .12s;
+}
+.thread-item:hover .sdel, .thread-item.active .sdel { opacity: .8; }
+.thread-item .sdel:hover { opacity: 1; color: var(--red); background: var(--srow-hover); }
+
+main { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; position: relative; }
+#chat {
+  flex: 1; overflow-y: auto; padding: 16px 14px 10px;
+  display: flex; flex-direction: column; gap: 11px;
+  background: rgba(16,19,28,0.3);
+  scrollbar-gutter: stable;
+}
+/* 聊天项一律按内容高度排列，绝不参与压缩。
+   否则长对话里带 overflow:hidden 的卡片（工具/命令）会被 flex 压成 2px 的一条黑线。 */
+#chat > * { flex: 0 0 auto; }
+.empty {
+  color: var(--muted); text-align: center; margin: auto; padding: 0 30px;
+  display: flex; flex-direction: column; align-items: center; gap: 10px; font-size: 13px;
+}
+.empty img { width: 62px; height: 62px; opacity: .5; border-radius: 16px; }
+
+/* ---------------- 消息 ---------------- */
+.msg {
+  max-width: 86%; padding: 10px 14px; border-radius: 16px;
+  white-space: pre-wrap; word-break: break-word;
+  box-shadow: 0 2px 10px rgba(0,0,0,.2); position: relative;
+}
+.msg.user {
+  align-self: flex-end; color: #fff; border-bottom-right-radius: 5px;
+  background: rgba(63,191,127, var(--bubble-alpha));
+  padding-right: 34px;
+}
+.msg.agent {
+  align-self: flex-start; background: rgba(35,40,56, var(--bubble-alpha));
+  border-bottom-left-radius: 5px; border: 1px solid var(--border);
+}
+.msg.system { align-self: center; background: transparent; color: var(--muted); font-size: 12px; padding: 2px 8px; box-shadow: none; }
+.msg.error {
+  align-self: stretch; background: rgba(229,83,75,.12);
+  border: 1px solid rgba(229,83,75,.45); color: #FF9D96; font-size: 13px;
+}
+.msg.usage { align-self: center; background: transparent; color: var(--muted); font-size: 11px; box-shadow: none; padding: 0; }
+.mtime { font-size: 10px; color: var(--muted); opacity: .75; margin-top: 4px; }
+.msg.user .mtime { color: rgba(255,255,255,.72); text-align: right; }
+.thinking { color: var(--muted); font-size: 13px; padding: 4px 6px; }
+.medit {
+  position: absolute; right: 6px; top: 6px; background: rgba(255,255,255,.14);
+  color: #fff; padding: 2px 7px; font-size: 12px; opacity: .9; border-radius: 8px;
+  border: none; line-height: 1.4;
+}
+.medit:hover { opacity: 1; background: rgba(255,255,255,.25); }
+.msg.agent.stream .mbody::after { content: "▌"; color: var(--accent); animation: blink 1s steps(1) infinite; margin-left: 2px; }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* 思考过程 */
+.reasoning {
+  align-self: stretch; background: rgba(27,31,43, var(--bubble-alpha));
+  border: 1px solid var(--border); border-left: 3px solid #55607A;
+  border-radius: 12px; margin: 2px 0; padding: 9px 12px; font-size: 13px;
+}
+.reasoning summary { cursor: pointer; color: var(--muted); user-select: none; font-weight: 500; }
+.reasoning summary::marker { color: var(--accent); }
+.reasoning .rtext {
+  white-space: pre-wrap; word-break: break-word; color: #A9B2C6;
+  margin-top: 6px; max-height: 200px; overflow: auto; font-size: 12.5px; line-height: 1.55;
+}
+/* 工具卡片 */
+.tool {
+  align-self: stretch; background: rgba(27,31,43, var(--bubble-alpha));
+  border: 1px solid var(--border); border-radius: 13px; margin: 2px 0;
+  font-size: 13px; overflow: hidden;
+}
+.tool .toolhead { display: flex; align-items: center; gap: 8px; padding: 9px 12px; font-weight: 600; }
+.tool .toolhead .tname { word-break: break-all; flex: 1; }
+.tool details { padding: 0 12px 9px; }
+.tool summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+.tool pre {
+  white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow: auto;
+  font-size: 12px; margin: 6px 0 0; font-family: ui-monospace, Consolas, monospace; color: #C3CBDC;
+}
+/* 命令卡片 */
+.cmd {
+  align-self: stretch; border: 1px solid var(--border); border-radius: 13px;
+  background: rgba(27,31,43, var(--bubble-alpha)); overflow: hidden;
+}
+.cmd .cmdhead {
+  display: flex; align-items: center; gap: 8px; padding: 9px 12px;
+  font-family: ui-monospace, Consolas, monospace; font-size: 12px;
+}
+.cmd .status { font-size: 10px; padding: 2px 8px; border-radius: 999px; flex: none; font-weight: 600; }
+.status.ok { background: rgba(63,191,127,.16); color: var(--green); }
+.status.fail { background: rgba(229,83,75,.16); color: var(--red); }
+.status.run { background: rgba(230,184,76,.16); color: var(--yellow); }
+.cmd .cmdline { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #A9B2C6; }
+.cmd details { border-top: 1px solid var(--border); }
+.cmd summary { padding: 8px 12px; font-size: 12px; color: var(--muted); cursor: pointer; }
+.cmd pre {
+  padding: 10px 12px; font-size: 12px; font-family: ui-monospace, Consolas, monospace;
+  white-space: pre-wrap; word-break: break-word; color: #C3CBDC; max-height: 320px; overflow-y: auto;
+}
+.file-edit {
+  align-self: stretch; border: 1px solid var(--border); border-radius: 12px;
+  background: rgba(27,31,43, var(--bubble-alpha)); padding: 9px 12px; font-size: 12px;
+}
+.file-edit .fpath { font-family: ui-monospace, Consolas, monospace; color: #9FD3FF; word-break: break-all; }
+
+/* 智能体提问 */
+.question {
+  align-self: stretch; background: rgba(27,31,43, var(--bubble-alpha));
+  border: 1px solid rgba(63,191,127,.55); border-radius: 14px;
+  margin: 2px 0; padding: 13px 14px; font-size: 14px;
+  box-shadow: 0 0 0 3px rgba(63,191,127,.08);
+}
+.question .qhead { font-weight: 700; margin-bottom: 10px; color: var(--accent); }
+.question .qitem { margin-bottom: 12px; }
+.question .qtext { font-weight: 600; margin-bottom: 6px; word-break: break-word; }
+.question .qopt {
+  display: flex; align-items: center; gap: 9px; padding: 9px 11px; font-size: 14px;
+  border: 1px solid var(--border); border-radius: 10px; margin-bottom: 6px;
+  background: rgba(255,255,255,.02); cursor: pointer;
+}
+.question .qopt:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.question .qcustom { margin-top: 6px; }
+
+/* Markdown（智能体回复内） */
+.msg.agent h5 { margin: 8px 0 4px; font-size: 14px; color: var(--accent); }
+.msg.agent pre.mdpre {
+  background: rgba(0,0,0,.4); border: 1px solid var(--border); border-radius: 9px;
+  padding: 9px 11px; overflow-x: auto; font-size: 12px; margin: 7px 0;
+  white-space: pre-wrap; word-break: break-word;
+}
+.msg.agent code { background: rgba(0,0,0,.35); padding: 1px 6px; border-radius: 5px; font-size: 12px; }
+.msg.agent blockquote { border-left: 3px solid var(--accent); margin: 7px 0; padding: 2px 11px; color: var(--muted); }
+.msg.agent .mdrow { padding: 3px 0; font-size: 13px; word-break: break-word; }
+.msg.agent .mdsep { color: var(--muted); margin: 0 7px; }
+.msg.agent .mdli { margin: 3px 0 3px 16px; }
+.msg.agent hr.mdhr { border: none; border-top: 1px dashed var(--border); margin: 8px 0; }
+
+/* ---------------- 附件与输入区 ---------------- */
+#attachWrap { display: none; flex-direction: column; flex: none; background: rgba(16,19,28,.30); }
+#attachments { display: flex; flex-wrap: wrap; gap: 7px; padding: 9px 14px 0; }
+.achip {
+  display: flex; align-items: center; gap: 7px; background: rgba(27,31,43, var(--bubble-alpha));
+  border: 1px solid var(--border); border-radius: 999px; padding: 4px 8px 4px 11px; font-size: 12px;
+  max-width: 100%;
+}
+.achip .aname { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px; }
+.achip-img { width: 26px; height: 26px; object-fit: cover; border-radius: 7px; border: 1px solid var(--border); flex: none; }
+.achip.ok { border-color: rgba(63,191,127,.5); }
+.achip.fail { border-color: var(--red); color: #FF9D96; }
+.achip.up { color: var(--muted); }
+.adel { background: transparent; color: var(--muted); padding: 0 4px; font-size: 13px; border: none; }
+
+#composer {
+  display: flex; align-items: flex-end; gap: 14px;
+  padding: 13px 13px calc(11px + var(--sa-b));
+  /* 顶边从聊天区的底色（30% 暗）平滑过渡到不透明，且不画分割线：接缝处不再有亮线/亮度跳变 */
+  background: linear-gradient(180deg, rgba(16,19,28,.30) 0%, rgba(16,19,28,.74) 46%, rgba(16,19,28,.94) 100%);
+  border-top: none; flex: none;
+}
+#composer #attachBtn {
+  border-radius: 50%; width: 38px; height: 38px; padding: 0; font-size: 16px;
+  flex: none; background: var(--panel2); border: 1px solid var(--border);
+}
+#composer textarea {
+  resize: none; height: 42px; max-height: 132px; flex: 1; min-width: 0; border-radius: 21px;
+  padding: 10px 14px; line-height: 1.45; background: var(--panel2);
+  /* 输入框用填充色，不画描边：否则那条竖线会和发送键贴在一起显得挤 */
+  border-color: transparent;
+}
+#composer textarea:focus { border-color: var(--accent); }
+/* 输入框内部那根滚动条会贴着发送键，看起来像条分割线，直接隐藏 */
+#composer textarea::-webkit-scrollbar { width: 0; height: 0; }
+#composer textarea { scrollbar-width: none; }
+.send-btn {
+  width: 42px; height: 42px; border-radius: 50%; padding: 0; flex: none;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff;
+  font-size: 17px; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 14px rgba(63,191,127,.24); border: none;
+}
+.send-btn:disabled { background: var(--panel2); box-shadow: none; color: var(--muted); }
+/* 运行中：发送键变「停止」 */
+.send-btn.stop {
+  background: rgba(229,83,75,.18); color: var(--red); border: 1px solid rgba(229,83,75,.4);
+  box-shadow: none; font-size: 14px;
+}
+
+/* ---------------- 输入栏下方的状态条 ---------------- */
+#statusbar {
+  display: none; align-items: center; flex-wrap: wrap; gap: 2px 7px; flex: none;
+  padding: 4px 12px calc(5px + var(--sa-b));
+  font-size: 10.5px; line-height: 1.4; color: var(--muted);
+  background: linear-gradient(180deg, rgba(16,19,28,.9) 0%, rgba(16,19,28,.98) 100%);
+  border-top: 1px solid rgba(46,52,70,.55);
+}
+#statusbar.on { display: flex; }
+#statusbar::-webkit-scrollbar { height: 0; }
+#statusbar .sb { flex: none; }
+#statusbar .sb b { color: var(--text); font-weight: 600; }
+#statusbar .sb.hot b { color: var(--accent); }
+#statusbar .sb.warn b { color: var(--yellow); }
+#statusbar .sep { flex: none; color: #3A4256; }
+/* 状态条接管底部安全区，输入栏就不用再留一大截；整体收紧一点，让输入框更靠下 */
+#attachWrap.hasstatus #composer { padding-bottom: 5px; }
+body.fs #attachWrap.hasstatus #composer { padding-bottom: 5px; }
+body.fs #statusbar { padding-bottom: max(20px, var(--sa-b)); }
+
+/* 回到最新（悬浮） */
+#toBottom {
+  position: absolute; right: 16px; bottom: calc(84px + var(--sa-b));
+  width: 40px; height: 40px; border-radius: 50%; padding: 0; font-size: 17px;
+  background: rgba(35,40,56,.95); border: 1px solid var(--border); color: var(--text);
+  box-shadow: var(--shadow); display: none; z-index: 12; align-items: center; justify-content: center;
+}
+#toBottom.show { display: flex; }
+#toBottom .badge {
+  position: absolute; top: -4px; right: -4px; background: var(--accent); color: #fff;
+  border-radius: 999px; font-size: 10px; padding: 0 5px; line-height: 15px; font-weight: 700;
+}
+
+/* ---------------- 弹窗 / 底部抽屉 ---------------- */
+.modal {
+  position: fixed; inset: 0; background: rgba(6,8,12,.72); z-index: 40;
+  display: none; align-items: flex-end; justify-content: center;
+  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+}
+.modal.show { display: flex; }
+.sheet {
+  width: 100%; max-width: 640px; max-height: 88vh; overflow-y: auto;
+  background: var(--panel); border-radius: 22px 22px 0 0;
+  padding: 8px 16px calc(18px + var(--sa-b));
+  display: flex; flex-direction: column; gap: 13px;
+  border-top: 1px solid var(--border); box-shadow: 0 -14px 44px rgba(0,0,0,.5);
+  animation: slideUp .22s cubic-bezier(.22,.9,.3,1);
+}
+.sheet::before {
+  content: ""; display: block; width: 42px; height: 4px; border-radius: 999px;
+  background: #454C60; margin: 4px auto 6px; flex: none;
+}
+@keyframes slideUp { from { transform: translateY(46px); opacity: .5; } to { transform: none; opacity: 1; } }
+.sheet h3 { font-size: 16px; font-weight: 700; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-size: 12px; color: var(--muted); }
+
+/* 余额 + 充值 */
+.balrow { display: flex; align-items: center; gap: 10px; }
+.balrow > #setBalance { flex: 1; min-width: 0; }
+.topup {
+  flex: none; text-decoration: none; font-size: 13px; font-weight: 600; color: #fff;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  border-radius: 999px; padding: 7px 16px; box-shadow: 0 4px 14px rgba(63,191,127,.28);
+}
+.topup.low { background: linear-gradient(135deg, #E6B84C, #D19A2A); box-shadow: 0 4px 14px rgba(230,184,76,.3); }
+.topup:active { transform: scale(.96); }
+
+/* 下拉式菜单（点一下展开列表，选完立即生效） */
+.dd { position: relative; }
+.dd-btn {
+  display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+  background: var(--panel2); border: 1px solid var(--border); border-radius: 11px;
+  padding: 11px 13px; font-size: 14px; color: var(--text);
+}
+.dd-btn .dd-label { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dd-btn .dd-caret { flex: none; color: var(--muted); font-size: 12px; transition: transform .16s ease; }
+.dd.open .dd-btn { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.dd.open .dd-caret { transform: rotate(180deg); }
+.dd-btn:disabled { opacity: .5; }
+.dd-menu {
+  position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 60; display: none;
+  background: #232838; border: 1px solid var(--border); border-radius: 13px;
+  box-shadow: 0 16px 40px rgba(0,0,0,.55); padding: 6px; max-height: 46vh; overflow-y: auto;
+}
+.dd.open .dd-menu { display: block; }
+.dd-item {
+  display: flex; align-items: center; gap: 8px; padding: 11px 12px; border-radius: 10px;
+  font-size: 14px; cursor: pointer;
+}
+.dd-item:hover { background: #2A3043; }
+.dd-item .dd-name { flex: 1; min-width: 0; }
+.dd-item .dd-sub { font-size: 11px; color: var(--muted); }
+.dd-item .dd-tick { flex: none; color: var(--accent); font-weight: 700; opacity: 0; }
+.dd-item.on { background: var(--accent-soft); }
+.dd-item.on .dd-tick { opacity: 1; }
+.dd-item.on .dd-name { color: var(--accent); font-weight: 600; }
+.dd-head { font-size: 11px; color: var(--muted); padding: 8px 12px 4px; }
+.row { display: flex; gap: 8px; }
+.row > * { flex: 1; }
+select { background: var(--panel2); border: 1px solid var(--border); color: var(--text); border-radius: 11px; padding: 9px 11px; outline: none; }
+
+/* 文件浏览器 */
+#browserPath {
+  font-size: 12px; color: var(--muted); word-break: break-all;
+  font-family: ui-monospace, Consolas, monospace; background: var(--panel2);
+  border: 1px solid var(--border); border-radius: 9px; padding: 7px 10px;
+}
+.fentry { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 10px; cursor: pointer; }
+.fentry:hover { background: var(--panel2); }
+.fentry .ic { width: 20px; text-align: center; flex: none; }
+.fentry .fname { flex: 1; word-break: break-all; }
+.fentry .finfo { font-size: 11px; color: var(--muted); flex: none; }
+
+/* ---------------- 窄屏 ---------------- */
+@media (max-width: 760px) {
+  #sidebar {
+    position: fixed; left: 0; top: 0; bottom: 0; z-index: 30; width: 82%; max-width: 320px;
+    padding-top: calc(10px + var(--sa-t));
+    transform: translateX(-102%); transition: transform .2s cubic-bezier(.22,.9,.3,1);
+    box-shadow: 0 0 34px rgba(0,0,0,.6); border-right: 1px solid var(--border);
+  }
+  #sidebar.open { transform: translateX(0); }
+  #mask { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 25; display: none; }
+  #mask.show { display: block; }
+  .msg { max-width: 92%; }
+  header .title { font-size: 14px; }
+  /* 顶栏塞得下更多按钮：手机上「＋新建」只留图标，按钮间距收紧 */
+  header { gap: 6px; }
+  header #newBtn { padding: 8px 11px; font-size: 16px; line-height: 1; }
+  header #newBtn .new-label { display: none; }
+  .status-pill .status-text { display: none; }
+}
+@media (min-width: 761px) {
+  #toBottom { bottom: calc(88px + var(--sa-b)); }
+}
+
+/* ============================================================================
+   微信风格聊天界面（浅色覆盖层）
+   ----------------------------------------------------------------------------
+   只作用于「顶栏 + 聊天区」这两个容器：登录页 / 侧栏 / 弹窗保持原深色主题，
+   把改动面收窄，避免大范围回归。
+   做法：在这两个容器上重新定义同一套 CSS 变量 —— 原来所有用 var() 的规则
+   （按钮、输入框、卡片、卡片内文字……）自动变成浅色；再对少数写死颜色的
+   规则做覆盖。气泡用微信的「对方白 / 自己绿」+ 小圆角 + 尖角 + 头像。
+   ========================================================================== */
+/* 浅色变量作用于**整页**（html 根节点）：侧栏 / 设置面板 / 弹窗也一起变浅。
+   原来只挂在 header, main 上，所以"只有聊天区能切颜色、其他界面都是深色"。 */
+:root, html[data-theme="light"] {
+  --bg: #EDEDED;
+  --panel: #FFFFFF;
+  --panel2: #F2F2F2;
+  --border: #E3E3E3;
+  --text: #191919;
+  --muted: #9A9A9A;
+  --accent: #07C160;
+  --accent-2: #06AD56;
+  --accent-soft: rgba(7,193,96,.12);
+  --green: #07C160;
+  --red: #FA5151;
+  --yellow: #FFC300;
+  --shadow: 0 2px 10px rgba(0,0,0,.10);
+  --wx-in: #FFFFFF;    /* 对方（智能体）气泡 */
+  --wx-out: #95EC69;   /* 自己（用户）气泡：微信绿 */
+  /* 侧栏行的 hover / 选中底色（DSH 那种"浅一层"的低对比高亮） */
+  --srow-hover: rgba(0,0,0,.045);
+  --srow-active: rgba(0,0,0,.075);
+}
+/* 外壳底色改浅：聊天区那层 30% 的浅色蒙层才有意义，设了壁纸时也仍看得见壁纸 */
+:root {
+  /* 聊天底色（无壁纸时）：默认 10% 黑（90% 白）的浅灰，可在设置里 0~30% 调；
+     JS 的 applyBaseTone() 会把下面这几个变量一起按当前深浅重算。
+     ov8/ov90/ov97/ov98 是分别给聊天区/输入栏/顶栏/状态条做无缝衔接用的同色蒙层。 */
+  --wx-base: #E6E6E6;
+  --wx-ov8: rgba(230,230,230,.08);
+  --wx-ov90: rgba(230,230,230,.90);
+  --wx-ov97: rgba(230,230,230,.97);
+  --wx-ov98: rgba(230,230,230,.98);
+}
+/* 画布底色也跟主题：全屏/刘海区域露出来的就是这一层（原来只有 body 设了，html 是透的） */
+html { background: var(--wx-base); }
+
+/* 这几处原本写死了深色，浅色主题下要单独覆盖（侧栏任务条目 / toast / 抽屉手柄 / 遮罩） */
+/* 侧栏行在两种主题下都靠 --srow-* 变量，这里不再需要单独覆盖 */
+html[data-theme="light"] #toast {
+  background: rgba(255,255,255,.98); border-color: #E3E3E3; color: #191919;
+  box-shadow: 0 6px 22px rgba(0,0,0,.14);
+}
+html[data-theme="light"] .sheet::before { background: #D8D8D8; }
+html[data-theme="light"] .sheet { box-shadow: 0 -14px 44px rgba(0,0,0,.20); }
+html[data-theme="light"] .modal { background: rgba(0,0,0,.42); }
+
+body { background: var(--wx-base); }
+
+header {
+  background: linear-gradient(180deg, var(--wx-ov97) 0%, var(--wx-ov90) 62%, var(--wx-ov8) 100%);
+}
+.status-pill { background: #FFFFFF; border-color: #E3E3E3; color: #7A7A7A; }
+.status-pill .dot { background: #C4C4C4; }
+.status-pill .dot.run { background: var(--accent); box-shadow: 0 0 0 3px rgba(7,193,96,.16); }
+#verBadge { background: #FFFFFF; border-color: #E3E3E3; color: #9A9A9A; }
+
+/* ---------------- 聊天区 ---------------- */
+#chat {
+  /* 极淡的一层同色蒙层：有壁纸时壁纸保持通透，没壁纸时就是 body 的那层灰。
+     深浅由设置里的「聊天底色深浅」控制（默认 10% 黑）。 */
+  background: var(--wx-ov8);
+  padding: 14px 48px 12px;   /* 左右留出头像位置；比 52px 稍收，给气泡多一点宽度 */
+  gap: 10px;
+}
+#chat::-webkit-scrollbar-thumb { background: rgba(0,0,0,.16); }
+
+/* ---------------- 气泡 ---------------- */
+.msg {
+  /* 思考/工具/命令卡片是整条宽度（align-self: stretch），气泡取 96% 与之基本齐平，
+     不再像 78% 那样明显偏窄（只留一点缝，避免长气泡顶到头像上）。 */
+  max-width: 96%; padding: 9px 12px; border-radius: 6px; font-size: 15px;
+  line-height: 1.45; box-shadow: none;
+}
+.msg.user {
+  align-self: flex-end; color: #191919; border-radius: 6px; padding-right: 32px;
+  background: rgba(149,236,105, var(--bubble-alpha));
+}
+.msg.agent {
+  align-self: flex-start; color: #191919; border: none; border-radius: 6px;
+  background: rgba(255,255,255, var(--bubble-alpha));
+}
+/* 尖角：贴在气泡靠头像那一侧的顶部 */
+.msg.agent::after {
+  content: ""; position: absolute; left: -7px; top: 11px; width: 0; height: 0;
+  border-top: 6px solid transparent; border-bottom: 6px solid transparent;
+  border-right: 7px solid rgba(255,255,255, var(--bubble-alpha));
+}
+.msg.user::after {
+  content: ""; position: absolute; right: -7px; top: 11px; width: 0; height: 0;
+  border-top: 6px solid transparent; border-bottom: 6px solid transparent;
+  border-left: 7px solid rgba(149,236,105, var(--bubble-alpha));
+}
+/* 头像（放在气泡外侧，用伪元素，不动 JS 的 DOM 结构） */
+.msg.agent::before, .msg.user::before {
+  content: ""; position: absolute; top: 0; width: 34px; height: 34px; border-radius: 6px;
+  background-repeat: no-repeat; background-position: center; background-size: 34px 34px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.10);
+}
+.msg.agent::before {
+  left: -42px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 34'%3E%3Crect width='34' height='34' rx='6' fill='%23E8F8EE'/%3E%3Crect x='9' y='13' width='16' height='13' rx='3' fill='%2307C160'/%3E%3Ccircle cx='14' cy='19' r='1.8' fill='%23fff'/%3E%3Ccircle cx='20' cy='19' r='1.8' fill='%23fff'/%3E%3Crect x='15' y='7' width='4' height='4' rx='2' fill='%2307C160'/%3E%3C/svg%3E");
+}
+.msg.user::before {
+  right: -42px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 34'%3E%3Crect width='34' height='34' rx='6' fill='%2395EC69'/%3E%3Ccircle cx='17' cy='13' r='4.6' fill='%23fff'/%3E%3Cpath d='M8 27c1.6-4.2 5-6 9-6s7.4 1.8 9 6z' fill='%23fff'/%3E%3C/svg%3E");
+}
+/* 时间 / 系统提示 / 报错：微信里这些是中性的小灰字 */
+.mtime { font-size: 10.5px; color: #B2B2B2; margin-top: 3px; }
+.msg.user .mtime { color: rgba(0,0,0,.35); text-align: right; }
+.msg.system {
+  align-self: center; background: rgba(0,0,0,.06); color: #7A7A7A;
+  font-size: 11.5px; padding: 3px 10px; border-radius: 5px;
+}
+.msg.usage { color: #B2B2B2; }
+.msg.error {
+  align-self: center; background: rgba(250,81,81,.10); border: 1px solid rgba(250,81,81,.35);
+  color: #C0392B; font-size: 13px; border-radius: 6px;
+}
+.thinking { color: #8A8A8A; }
+.medit { background: rgba(0,0,0,.08); color: #2C5E1B; }
+.medit:hover { background: rgba(0,0,0,.16); }
+.msg.agent.stream .mbody::after { color: var(--accent); }
+
+/* ---------------- 卡片：白底 + 浅边框 ---------------- */
+.reasoning {
+  background: rgba(255,255,255, var(--bubble-alpha));
+  border: 1px solid #E3E3E3; border-left: 3px solid #D2D2D2; border-radius: 6px;
+}
+.reasoning .rtext { color: #6B6B6B; }
+.tool, .cmd, .file-edit, .question, .achip {
+  background: rgba(255,255,255, var(--bubble-alpha));
+  border: 1px solid #E3E3E3; border-radius: 8px;
+}
+.tool pre, .cmd pre { color: #3A3A3A; background: #FAFAFA; }
+.cmd .cmdline { color: #6B6B6B; }
+.cmd details { border-top: 1px solid #EDEDED; }
+.file-edit .fpath { color: #0A6EBD; }
+.question { border-color: rgba(7,193,96,.45); box-shadow: 0 0 0 3px rgba(7,193,96,.06); }
+.question .qopt { background: #F7F7F7; border-color: #E3E3E3; }
+.question .qopt:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.msg.agent h5 { color: #07A050; }
+.msg.agent pre.mdpre { background: #F5F5F5; border-color: #E3E3E3; }
+.msg.agent code { background: #F0F0F0; }
+.msg.agent hr.mdhr { border-top-color: #E3E3E3; }
+.msg.agent blockquote { color: #7A7A7A; }
+.achip.fail { color: #C0392B; }
+
+/* ---------------- 附件区 / 输入栏 / 状态条 ---------------- */
+#attachWrap { background: var(--wx-ov8); }
+#composer {
+  gap: 10px; padding: 10px 12px calc(10px + var(--sa-b));
+  background: linear-gradient(180deg, var(--wx-ov8) 0%, var(--wx-ov90) 46%, var(--wx-ov98) 100%);
+}
+#composer #attachBtn { background: #FFFFFF; border: 1px solid #E3E3E3; }
+#composer textarea { background: #FFFFFF; border-color: transparent; color: #191919; }
+#composer textarea::placeholder { color: #ABABAB; }
+.send-btn { box-shadow: none; }
+.send-btn:disabled { background: #E4E4E4; color: #B4B4B4; }
+.send-btn.stop { background: rgba(250,81,81,.14); color: var(--red); border: 1px solid rgba(250,81,81,.35); }
+#statusbar {
+  background: linear-gradient(180deg, var(--wx-ov90) 0%, var(--wx-ov98) 100%);
+  border-top: 1px solid #E3E3E3; color: #8A8A8A;
+}
+#statusbar .sb b { color: #191919; }
+#statusbar .sep { color: #CFCFCF; }
+#toBottom { background: #FFFFFF; border: 1px solid #E3E3E3; color: #4A4A4A; }
+
+/* ---------------- 分段控件（外观切换用） ---------------- */.seg { display: flex; gap: 4px; background: #F2F2F2; border-radius: 10px; padding: 3px; }
+.seg button {
+  flex: 1; border: 0; background: none; border-radius: 8px;
+  padding: 8px 0; font-size: 13px; color: #6B6B70;
+}
+.seg button.on {
+  background: #FFFFFF; color: #111111; font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0,0,0,.10);
+}
+
+/* 全屏诊断浮层：全屏状态下长按版本号弹出（排查顶部黑边） */
+#diagBox {
+  position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,.92);
+  color: #EDF1F7;
+  font: 12px/1.75 ui-monospace, Menlo, Consolas, monospace;
+  padding: 18px 16px; white-space: pre-wrap; word-break: break-all; overflow: auto;
+}
+
+/* ============================================================================
+   深色主题：html[data-theme="dark"]
+   ----------------------------------------------------------------------------
+   浅色是默认（上面那块覆盖层），这里只在**显式切换成深色**时把它再盖回去，
+   配色沿用最早的深蓝底 + 品牌绿，保证和侧栏/弹窗（原本就是深色）一致。
+   ========================================================================== */
+html[data-theme="dark"] {
+  --wx-base: #14161C;
+  --wx-ov8: rgba(20,22,28,.08);
+  --wx-ov90: rgba(20,22,28,.90);
+  --wx-ov97: rgba(20,22,28,.97);
+  --wx-ov98: rgba(20,22,28,.98);
+}
+/* 深色变量也挂在根节点：浅色变量是 :root 默认值（一直生效），这里用更高优先级盖回去，
+   这样侧栏 / 设置面板 / 弹窗也能跟着切回深色（否则它们会一直吃 :root 的浅色值）。 */
+html[data-theme="dark"] {
+  --bg: #12141C; --panel: #1B1F2B; --panel2: #232838; --border: #2E3446;
+  --text: #EDF1F7; --muted: #8C96AB;
+  --accent: #3FBF7F; --accent-2: #2E9B66; --accent-soft: rgba(63,191,127,.12);
+  --green: #3FBF7F; --red: #E5534B; --yellow: #E6B84C;
+  --shadow: 0 6px 22px rgba(0,0,0,.35);
+  --wx-in: #232838;
+  --wx-out: #95EC69;
+  --srow-hover: rgba(255,255,255,.065);
+  --srow-active: rgba(255,255,255,.105);
+}
+html[data-theme="dark"] body { background: var(--wx-base); }
+html[data-theme="dark"] header {
+  background: linear-gradient(180deg, var(--wx-ov97) 0%, var(--wx-ov90) 62%, var(--wx-ov8) 100%);
+}
+html[data-theme="dark"] .status-pill { background: #232838; border-color: #2E3446; color: #A9B4C7; }
+html[data-theme="dark"] .status-pill .dot { background: #7D8AA0; }
+html[data-theme="dark"] #verBadge { background: #232838; border-color: #2E3446; color: #8C96AB; }
+html[data-theme="dark"] .seg { background: #232838; }
+html[data-theme="dark"] .seg button { color: #8C96AB; }
+html[data-theme="dark"] .seg button.on { background: #2E3446; color: #EDF1F7; }
+
+html[data-theme="dark"] #chat { background: var(--wx-ov8); }
+html[data-theme="dark"] #chat::-webkit-scrollbar-thumb { background: rgba(255,255,255,.18); }
+
+/* 气泡：对面深灰（自己仍用微信绿） */
+html[data-theme="dark"] .msg.agent { color: #EDF1F7; background: rgba(35,40,56, var(--bubble-alpha)); }
+html[data-theme="dark"] .msg.agent::after { border-right-color: rgba(35,40,56, var(--bubble-alpha)); }
+html[data-theme="dark"] .msg.user { color: #10240D; }
+html[data-theme="dark"] .mtime { color: #7D8AA0; }
+html[data-theme="dark"] .msg.user .mtime { color: rgba(0,0,0,.38); }
+html[data-theme="dark"] .msg.system { background: rgba(255,255,255,.08); color: #A9B4C7; }
+html[data-theme="dark"] .msg.usage { color: #8C96AB; }
+html[data-theme="dark"] .msg.error {
+  background: rgba(229,83,75,.16); border-color: rgba(229,83,75,.42); color: #FF9A94;
+}
+html[data-theme="dark"] .thinking { color: #8C96AB; }
+html[data-theme="dark"] .medit { background: rgba(255,255,255,.10); color: #BFE8A8; }
+html[data-theme="dark"] .medit:hover { background: rgba(255,255,255,.18); }
+
+/* 卡片：深底 + 深边框 */
+html[data-theme="dark"] .reasoning {
+  background: rgba(35,40,56, var(--bubble-alpha));
+  border-color: #2E3446; border-left-color: #4A5268;
+}
+html[data-theme="dark"] .reasoning .rtext { color: #A9B4C7; }
+html[data-theme="dark"] .tool, html[data-theme="dark"] .cmd, html[data-theme="dark"] .file-edit,
+html[data-theme="dark"] .question, html[data-theme="dark"] .achip {
+  background: rgba(35,40,56, var(--bubble-alpha)); border-color: #2E3446;
+}
+html[data-theme="dark"] .tool pre, html[data-theme="dark"] .cmd pre { color: #D7DEEA; background: #1A1E29; }
+html[data-theme="dark"] .cmd .cmdline { color: #A9B4C7; }
+html[data-theme="dark"] .cmd details { border-top-color: #2E3446; }
+html[data-theme="dark"] .file-edit .fpath { color: #6FB6F0; }
+html[data-theme="dark"] .question { border-color: rgba(63,191,127,.5); box-shadow: 0 0 0 3px rgba(63,191,127,.08); }
+html[data-theme="dark"] .question .qopt { background: #1B1F2B; border-color: #2E3446; }
+html[data-theme="dark"] .msg.agent h5 { color: #5FD08A; }
+html[data-theme="dark"] .msg.agent pre.mdpre { background: #1A1E29; border-color: #2E3446; }
+html[data-theme="dark"] .msg.agent code { background: #2A3043; }
+html[data-theme="dark"] .msg.agent hr.mdhr { border-top-color: #2E3446; }
+html[data-theme="dark"] .msg.agent blockquote { color: #A9B4C7; }
+html[data-theme="dark"] .achip.fail { color: #FF9A94; }
+
+/* 输入栏 / 状态条 */
+html[data-theme="dark"] #composer #attachBtn { background: #232838; border-color: #2E3446; }
+html[data-theme="dark"] #composer textarea { background: #232838; color: #EDF1F7; }
+html[data-theme="dark"] #composer textarea::placeholder { color: #7D8AA0; }
+html[data-theme="dark"] .send-btn:disabled { background: #2A3043; color: #7D8AA0; }
+html[data-theme="dark"] #statusbar { border-top-color: #2E3446; color: #8C96AB; }
+html[data-theme="dark"] #statusbar .sb b { color: #EDF1F7; }
+html[data-theme="dark"] #statusbar .sep { color: #4A5268; }
+html[data-theme="dark"] #toBottom { background: #232838; border-color: #2E3446; color: #D7DEEA; }
+
+/* 登录页 */
+html[data-theme="dark"] #login { background: linear-gradient(180deg, #161926 0%, #101320 100%); }
+html[data-theme="dark"] #login .card {
+  background: #1B1F2B;
+  box-shadow: 0 12px 32px rgba(0,0,0,.45), 0 1px 2px rgba(0,0,0,.30);
+}
+html[data-theme="dark"] #login h1 { color: #EDF1F7; }
+html[data-theme="dark"] #login p.sub { color: #8C96AB; }
+html[data-theme="dark"] #login .host-chip { background: #232838; color: #A9B4C7; }
+html[data-theme="dark"] #login input#pinInput { background: #232838; border-color: #2E3446; color: #EDF1F7; }
+html[data-theme="dark"] #login input#pinInput::placeholder { color: #7D8AA0; }
+html[data-theme="dark"] #login input#pinInput:focus {
+  background: #262B3A; border-color: #3FBF7F; box-shadow: 0 0 0 4px rgba(63,191,127,.16);
+}
+html[data-theme="dark"] #login .pin-wrap.has-err input#pinInput {
+  border-color: #E5534B; box-shadow: 0 0 0 4px rgba(229,83,75,.16);
+}
+html[data-theme="dark"] #login .pin-eye { color: #7D8AA0; }
+html[data-theme="dark"] #login button.primary {
+  background: linear-gradient(180deg, #43C98A, #2E9B66);
+  box-shadow: 0 6px 16px rgba(63,191,127,.22);
+}
+html[data-theme="dark"] #login .err {
+  background: rgba(229,83,75,.14); border-color: rgba(229,83,75,.40); color: #FF9A94;
+}
+html[data-theme="dark"] #login .foot { color: #7D8AA0; }
+html[data-theme="dark"] #login .foot b { color: #A9B4C7; }
+html[data-theme="dark"] #login .ver { color: #4A5268; }
+
+
+/* ════════════════════════════════════════════════════════════════════════
+   设计层 v2（只覆盖视觉，不动布局尺寸与 JS）
+   - 更克制的层级：更大的圆角、只留一条发丝线、用柔和阴影表达深度
+   - 排版：中文系统字体栈 + 字号阶梯 + 数字等宽
+   - 登录页/输入栏/气泡/侧栏/设置面板统一质感
+   ════════════════════════════════════════════════════════════════════════ */
+:root, html[data-theme="light"] {
+  --bg: #F2F3F6;
+  --panel: #FFFFFF;
+  --panel2: #F5F6F9;
+  --border: rgba(16, 26, 46, .085);
+  --text: #101623;
+  --muted: #6E7889;
+  --accent: #07C160;
+  --accent-2: #05A854;
+  --accent-soft: rgba(7, 193, 96, .10);
+  --shadow: 0 1px 2px rgba(16, 26, 46, .05), 0 10px 30px -14px rgba(16, 26, 46, .22);
+  --sh-1: 0 1px 2px rgba(16, 26, 46, .06);
+  --sh-2: 0 10px 30px -14px rgba(16, 26, 46, .22);
+  --sh-3: 0 24px 54px -22px rgba(16, 26, 46, .30);
+  --hair: inset 0 1px 0 rgba(255, 255, 255, .9);
+  --r-xs: 8px; --r-sm: 12px; --r-md: 16px; --r-lg: 22px;
+}
+html[data-theme="dark"] {
+  --bg: #0B0D12;
+  --panel: #12161D;
+  --panel2: #1A2029;
+  --border: rgba(255, 255, 255, .075);
+  --text: #ECF0F7;
+  --muted: #8792A6;
+  --accent: #2FD48A;
+  --accent-2: #1FB874;
+  --shadow: 0 1px 0 rgba(255,255,255,.03) inset, 0 18px 40px -20px rgba(0,0,0,.85);
+  --sh-1: 0 1px 2px rgba(0, 0, 0, .4);
+  --sh-2: 0 16px 36px -18px rgba(0, 0, 0, .8);
+  --sh-3: 0 30px 60px -26px rgba(0, 0, 0, .9);
+  --hair: inset 0 1px 0 rgba(255, 255, 255, .05);
+}
+
+html, body {
+  font-family: "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei UI",
+               system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+body { letter-spacing: .005em; }
+
+/* ───────── 登录页：柔和极光底 + 更有质感的卡片 ───────── */
+#login {
+  background:
+    radial-gradient(58% 42% at 18% 4%, rgba(7, 193, 96, .13), transparent 68%),
+    radial-gradient(46% 38% at 88% 10%, rgba(64, 158, 255, .12), transparent 70%),
+    linear-gradient(180deg, #F7F8FB 0%, #EDEFF4 52%, #E6E9F0 100%);
+}
+#login::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background-image: radial-gradient(rgba(16, 26, 46, .05) 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: radial-gradient(70% 60% at 50% 30%, #000 0%, transparent 75%);
+  -webkit-mask-image: radial-gradient(70% 60% at 50% 30%, #000 0%, transparent 75%);
+}
+#login .card {
+  position: relative; max-width: 356px; border-radius: 26px;
+  padding: 30px 22px 22px;
+  border: 1px solid rgba(255, 255, 255, .9);
+  background: linear-gradient(180deg, #FFFFFF 0%, #FDFDFE 100%);
+  box-shadow: 0 1px 2px rgba(16, 26, 46, .05), 0 26px 60px -26px rgba(16, 26, 46, .35);
+  animation: login-rise .5s cubic-bezier(.22, .68, .28, 1) both;
+}
+@keyframes login-rise { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: none; } }
+#login img.app-icon {
+  width: 78px; height: 78px; border-radius: 23px;
+  box-shadow: 0 10px 26px -8px rgba(7, 193, 96, .45), 0 0 0 1px rgba(16, 26, 46, .05);
+}
+#login h1 { font-size: 21px; font-weight: 700; letter-spacing: -.01em; color: #0E1420; margin: 16px 0 6px; }
+#login p.sub { color: #7A8496; font-size: 13px; line-height: 1.6; }
+#login .host-chip {
+  margin-top: 14px; padding: 6px 13px; border-radius: 999px;
+  background: #F4F6F9; border: 1px solid rgba(16, 26, 46, .06);
+  color: #5F6B80; font-size: 11.5px;
+}
+#login form { margin-top: 20px; gap: 13px; }
+#login input#pinInput {
+  height: 58px; border-radius: 17px;
+  border: 1.5px solid rgba(16, 26, 46, .10); background: #F6F7FA; color: #0E1420;
+  font-size: 23px; font-weight: 650; letter-spacing: .46em; text-indent: .46em;
+  box-shadow: inset 0 1px 2px rgba(16, 26, 46, .04);
+  transition: border-color .16s, box-shadow .18s, background .16s;
+}
+#login input#pinInput:focus {
+  border-color: var(--accent); background: #FFFFFF;
+  box-shadow: 0 0 0 4px rgba(7, 193, 96, .13), inset 0 1px 2px rgba(16, 26, 46, .03);
+}
+#login .pin-eye { width: 46px; height: 46px; border-radius: 14px; color: #98A1B2; }
+#login button.primary {
+  height: 54px; border-radius: 17px; font-size: 16.5px; letter-spacing: .02em;
+  background: linear-gradient(180deg, #16D277 0%, #07C160 58%, #05B158 100%);
+  box-shadow: 0 10px 24px -10px rgba(7, 193, 96, .65), inset 0 1px 0 rgba(255, 255, 255, .28);
+}
+#login button.primary:active { transform: translateY(1px) scale(.997); }
+#login .err {
+  border-radius: 14px; background: #FFF4F3; border-color: #F6D9D6;
+  box-shadow: 0 1px 2px rgba(200, 40, 30, .05);
+}
+#login .foot { margin-top: 18px; color: #98A1B2; }
+#login .ver { color: #A8B0BF; letter-spacing: .12em; }
+
+/* ───────── 顶栏 ───────── */
+header { gap: 9px; padding: calc(10px + var(--sa-t)) 13px 10px; }
+header .title {
+  font-size: 16.5px; font-weight: 650; letter-spacing: -.012em;
+}
+header .icon-btn {
+  width: 37px; height: 37px; border-radius: 12px; font-size: 16.5px;
+  transition: background .16s, color .16s, transform .1s;
+}
+header .icon-btn:active { transform: scale(.94); }
+.status-pill {
+  padding: 4px 10px 4px 9px; font-size: 11.5px; letter-spacing: .01em;
+  background: var(--panel); border-color: var(--border);
+  box-shadow: var(--sh-1);
+}
+.status-pill .dot { width: 6px; height: 6px; }
+#verBadge {
+  font-size: 10px; letter-spacing: .06em; border-radius: 7px; padding: 2px 6px;
+  background: var(--panel2); border-color: var(--border); opacity: .9;
+}
+header #newBtn { border-radius: 12px; padding: 9px 15px; font-size: 13px; box-shadow: var(--sh-1); }
+
+/* ───────── 聊天气泡 ───────── */
+#chat { gap: 12px; padding: 16px 46px 14px; }
+.msg {
+  font-size: 15px; line-height: 1.56; letter-spacing: .006em;
+  padding: 10px 13px;
+  box-shadow: 0 1px 1.5px rgba(16, 26, 46, .05), 0 6px 18px -12px rgba(16, 26, 46, .22);
+}
+.msg.user {
+  border-radius: 18px 18px 6px 18px;
+  padding-right: 34px;
+}
+.msg.agent {
+  border-radius: 18px 18px 18px 6px;
+}
+.msg.agent::after { top: 13px; left: -6px; }
+.msg.user::after { top: 13px; right: -6px; }
+.msg.agent::before, .msg.user::before {
+  width: 36px; height: 36px; border-radius: 11px; background-size: 36px 36px;
+  box-shadow: 0 2px 6px -2px rgba(16, 26, 46, .25), 0 0 0 1px rgba(16, 26, 46, .05);
+}
+.msg.agent::before { left: -44px; }
+.msg.user::before { right: -44px; }
+#chat .time, #chat .meta, #chat .sys, #chat .msg .time { font-size: 10.5px; letter-spacing: .02em; }
+
+/* ───────── 输入栏 ───────── */
+#composer { gap: 11px; padding: 12px 13px calc(12px + var(--sa-b)); }
+#composer #attachBtn {
+  width: 40px; height: 40px; border-radius: 50%; font-size: 16px;
+  background: var(--panel); border: 1px solid var(--border);
+  box-shadow: var(--sh-1); transition: transform .12s, background .16s;
+}
+#composer #attachBtn:active { transform: scale(.94); }
+#composer textarea {
+  height: 44px; border-radius: 22px; padding: 11px 16px;
+  font-size: 15px; line-height: 1.5; letter-spacing: .005em;
+  background: var(--panel); border: 1px solid var(--border);
+  box-shadow: var(--sh-1);
+}
+#composer textarea:focus { border-color: rgba(7, 193, 96, .45); box-shadow: 0 0 0 3px rgba(7, 193, 96, .10); }
+.send-btn {
+  width: 44px; height: 44px; font-size: 17px;
+  background: linear-gradient(150deg, #12CD6C, var(--accent) 55%, var(--accent-2));
+  box-shadow: 0 8px 20px -8px rgba(7, 193, 96, .7), inset 0 1px 0 rgba(255, 255, 255, .25);
+  transition: transform .12s, filter .16s;
+}
+.send-btn:active { transform: scale(.94); }
+.send-btn:disabled { background: var(--panel2); box-shadow: none; }
+
+/* ───────── 状态条 ───────── */
+#statusbar { font-size: 11px; letter-spacing: .01em; font-variant-numeric: tabular-nums; }
+#statusbar .sb b { font-weight: 650; }
+
+/* ───────── 侧栏 ───────── */
+#sidebar { padding: 10px 8px calc(14px + var(--sa-b)); }
+.thread-item { height: 36px; border-radius: 10px; }
+.thread-item .sname { font-size: 13.5px; letter-spacing: .005em; }
+.side-sec { padding: 13px 8px 7px; letter-spacing: .14em; font-size: 10px; text-transform: uppercase; }
+.stab { border-radius: 9px; font-size: 12.5px; }
+.stab.active { box-shadow: var(--sh-1); }
+
+/* ───────── 弹窗 / 底部抽屉 ───────── */
+.sheet {
+  border-radius: 26px 26px 0 0;
+  padding: 10px 18px calc(20px + var(--sa-b));
+  gap: 15px;
+  box-shadow: 0 -20px 60px -24px rgba(16, 26, 46, .45);
+}
+.sheet::before { width: 38px; height: 4.5px; border-radius: 99px; }
+.sheet h3 { font-size: 17px; font-weight: 650; letter-spacing: -.01em; }
+.field label { font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.field + .field { padding-top: 2px; }
+.sheet button, .modal button { border-radius: 12px; }
+.sheet input, .sheet textarea, .sheet select { border-radius: 12px; }
+
+/* 滑块：细轨道 + 白色圆点 */
+input[type="range"] { -webkit-appearance: none; appearance: none; height: 26px; background: transparent; }
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 5px; border-radius: 99px; background: var(--panel2); border: 1px solid var(--border);
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 20px; height: 20px; margin-top: -8px;
+  border-radius: 50%; background: #fff; border: 1px solid rgba(16, 26, 46, .12);
+  box-shadow: 0 2px 6px -1px rgba(16, 26, 46, .35);
+}
+html[data-theme="dark"] input[type="range"]::-webkit-slider-thumb { background: #E8ECF4; }
+
+/* 分段控件 */
+.seg { border-radius: 12px; padding: 3px; gap: 3px; }
+.seg button { border-radius: 9px; font-size: 12.5px; padding: 7px 0; }
+
+/* Toast */
+#toast {
+  border-radius: 14px; font-size: 12.5px; letter-spacing: .01em;
+  padding: 11px 16px; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  box-shadow: var(--sh-2);
+}
+
+/* 顶部工具/提示条（如“轻点屏幕隐藏地址栏”）略微收紧 */
+#toBottom { box-shadow: var(--sh-2); }
+</style>
+</head>
+<body>
+
+<div id="login">
+  <div class="card">
+    <img class="app-icon" src="/icons/icon-192.png" alt="">
+    <h1>手机远程控制台</h1>
+    <p class="sub">在手机上远程使用电脑上的 DSH 智能体</p>
+    <div class="host-chip" id="loginHost"></div>
+    <form id="loginForm">
+      <div class="pin-wrap" id="pinWrap">
+        <input id="pinInput" type="password" inputmode="numeric" pattern="[0-9]*"
+               autocomplete="current-password" placeholder="输入 8 位访问密码" maxlength="8" required>
+        <button type="button" class="pin-eye" id="pinEye" title="显示/隐藏密码">👁</button>
+      </div>
+      <button class="primary" type="submit" id="loginBtn">连接</button>
+      <div class="err" id="loginErrBox"><span>⚠️</span><span id="loginErr"></span></div>
+    </form>
+    <div class="foot">PIN 显示在<b>电脑端管理界面</b>，也可以直接扫那边的二维码（自动带 PIN）</div>
+  </div>
+  <div class="ver">v41</div>
+</div>
+
+<div id="app">
+  <header>
+    <button id="menuBtn" class="icon-btn" title="任务列表">☰</button>
+    <span class="status-pill"><span class="dot" id="statusDot"></span><span class="status-text" id="statusText">空闲</span></span>
+    <span class="title" id="appTitle">远程控制台</span>
+    <span id="verBadge">v41</span>
+    <button id="fsBtn" class="icon-btn" title="全屏（隐藏浏览器界面）">⛶</button>
+    <button id="settingsBtn" class="icon-btn" title="设置">⚙</button>
+    <button id="newBtn" class="primary" title="新建任务">＋<span class="new-label">新建</span></button>
+  </header>
+  <div id="layout">
+    <aside id="sidebar">
+      <div id="sideTabs">
+        <button class="stab active" id="tabConsole">手机任务</button>
+        <button class="stab" id="tabDesktop">电脑端对话</button>
+      </div>
+      <div id="threadList"></div>
+      <div id="desktopList" style="display:none;"></div>
+    </aside>
+    <main>
+      <div id="chat"><div class="empty" id="emptyHint">在左侧选择一个任务，或新建一个任务开始</div></div>
+      <button id="toBottom" title="回到最新">↓</button>
+      <div id="attachWrap">
+        <div id="attachments"></div>
+        <div id="composer">
+          <button id="attachBtn" title="上传图片 / PPT / PDF / 文档">📎</button>
+          <textarea id="input" placeholder="给智能体发指令…" rows="1"></textarea>
+          <button class="send-btn" id="sendBtn" title="发送">➤</button>
+        </div>
+        <div id="statusbar" title="点一下看详细用量"></div>
+      </div>
+    </main>
+  </div>
+  <div id="mask"></div>
+</div>
+<input type="file" id="bgFile" accept="image/*" style="display:none;">
+<input type="file" id="fileInput" multiple
+  accept="image/png,image/jpeg,image/gif,image/webp,image/bmp,.pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.txt,.md,.csv,.zip,text/plain,text/markdown,application/octet-stream"
+  style="display:none;">
+
+<!-- 新建任务 -->
+<div class="modal" id="newModal">
+  <div class="sheet">
+    <h3>新建任务</h3>
+    <div class="field"><label>任务名称（可选）</label><input id="ntName" placeholder="例如：修复登录页 bug"></div>
+    <div class="field">
+      <label>工作目录</label>
+      <div class="row">
+        <input id="ntWorkdir" readonly>
+        <button id="ntBrowse" style="flex:0 0 auto;">浏览…</button>
+      </div>
+    </div>
+    <div class="field"><label>第一条指令（可选）</label><textarea id="ntPrompt" rows="3" placeholder="告诉智能体要做什么"></textarea></div>
+    <div class="row">
+      <button id="ntCancel">取消</button>
+      <button id="ntCreate" class="primary">创建并开始</button>
+    </div>
+  </div>
+</div>
+
+<!-- 安装说明 -->
+<div class="modal" id="installModal">
+  <div class="sheet">
+    <h3>安装到手机</h3>
+    <p style="font-size:13px;color:var(--muted);">把“远程控制台”装成独立 App，从手机桌面一键打开。</p>
+    <div id="installSteps">
+      <div class="field"><label>iPhone / iPad（Safari）</label>
+        <div style="font-size:13px;color:var(--text);">打开本页 → 点分享按钮 → “添加到主屏幕” → 确认。</div>
+      </div>
+      <div class="field"><label>Android（Chrome）</label>
+        <div style="font-size:13px;color:var(--text);">浏览器菜单 → “安装应用”或“添加到主屏幕”。若没有安装选项，请用外网 HTTPS 隧道地址访问后再安装（详见 README）。</div>
+      </div>
+    </div>
+    <div class="row">
+      <button id="installClose">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 设置 -->
+<div class="modal" id="settingsModal">
+  <div class="sheet">
+    <h3>设置</h3>
+    <button id="settingsX" title="关闭"
+      style="position:absolute;top:8px;right:10px;background:transparent;color:var(--muted);font-size:20px;padding:2px 10px;border-radius:8px;">✕</button>
+    <div class="field">
+      <label>模型（对当前这段对话生效）</label>
+      <div class="dd" id="modelDd"></div>
+    </div>
+    <div class="field">
+      <label>思考强度</label>
+      <div class="dd" id="effortDd"></div>
+    </div>
+    <div class="field">
+      <label>当前设置</label>
+      <div id="setModel" style="font-size:12px;color:var(--muted);">加载中…</div>
+    </div>
+    <div class="field">
+      <label>访问地址（网页关闭后找回用）</label>
+      <div id="setHost" style="font-size:12px;color:var(--muted);word-break:break-all;"></div>
+      <div class="row">
+        <button id="copyHost">复制地址</button>
+        <button id="hostHint">添加到主屏幕</button>
+        <button id="openV2">新版界面</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>Token 余额</label>
+      <div class="balrow">
+        <div id="setBalance" style="font-size:13px;">加载中…</div>
+        <a id="topUp" class="topup" href="https://platform.deepseek.com/top_up"
+           target="_blank" rel="noopener">充值</a>
+      </div>
+      <div id="balHint" style="font-size:11px;color:var(--muted);display:none;">
+        余额不多了，点「充值」会在浏览器里打开 DeepSeek 官方充值页（需要在那里登录）。
+      </div>
+    </div>
+    <div class="field">
+      <label>使用情况（累计）</label>
+      <div id="setUsage" style="font-size:13px;">加载中…</div>
+    </div>
+    <div class="field" id="fsField">
+      <label>全屏显示（隐藏浏览器界面）</label>
+      <div class="row">
+        <button id="fsToggle">进入全屏</button>
+        <button id="fsAutoBtn">打开时自动全屏：关</button>
+      </div>
+      <div id="fsHint" style="font-size:11px;color:var(--muted);display:none;">
+        iPhone 的浏览器不允许网页全屏：请点「分享」→「添加到主屏幕」，以后从桌面图标打开就没有浏览器界面了。
+      </div>
+    </div>
+    <!-- 只在 App 里显示：顶栏已经去掉，这些入口搬到这里 -->
+    <div class="field" id="appBox" style="display:none;">
+      <label>App</label>
+      <div id="appVer" style="font-size:12px;color:var(--muted);"></div>
+      <div class="row">
+        <button id="appReconnect">重新连接</button>
+        <button id="appUpdate">检查更新</button>
+        <button id="appSetup">改地址</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>聊天背景图</label>
+      <div class="row">
+        <button id="bgPick">从相册选择</button>
+        <button id="bgClear">清除背景</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>对话框透明度（<span id="bgAlphaVal">90%</span>）</label>
+      <input type="range" id="bgAlpha" min="30" max="100" value="90" style="padding:0;">
+    </div>
+    <div class="field">
+      <label>外观</label>
+      <div class="seg" id="themeSeg">
+        <button type="button" data-theme-opt="light">浅色</button>
+        <button type="button" data-theme-opt="dark">深色</button>
+        <button type="button" data-theme-opt="auto">跟随系统</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>聊天底色深浅（<span id="baseShadeVal">10%</span>）</label>
+      <input type="range" id="baseShade" min="0" max="30" value="10" style="padding:0;">
+      <div style="font-size:11px;color:var(--muted);">没设壁纸时就是这层灰的深浅：0% 近乎纯白，30% 明显偏灰。设了壁纸时只是一层很淡的同色蒙层。</div>
+    </div>
+    <div class="row">
+      <button id="usageRefresh">刷新余额/用量</button>
+    </div>
+    <div class="row">
+      <button id="settingsClose">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 文件浏览 -->
+<div class="modal" id="fileModal">
+  <div class="sheet">
+    <h3>选择工作目录</h3>
+    <div id="browserPath"></div>
+    <div class="row">
+      <input id="fbNewDir" placeholder="新建子文件夹名称">
+      <button id="fbMkdir" style="flex:0 0 auto;">新建</button>
+    </div>
+    <div id="fileList"></div>
+    <div class="row">
+      <button id="fbCancel">取消</button>
+      <button id="fbPick" class="primary">选择此文件夹</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+const $ = (id) => document.getElementById(id);
+let PIN = localStorage.getItem("console_pin") || "";
+let threads = {};
+let current = null;          // {kind:"thread"|"session", id}
+let streamAbort = null;
+let state = { running: false, byId: {}, fp: {}, opening: false, order: [] };
+let attachments = [];
+let viewMode = "console";
+let desktopSessions = [];
+let turnDoneShown = {};
+let streamRetry = 0;
+
+const api = async (path, opts = {}) => {
+  let res;
+  try {
+    res = await fetch(path, {
+      ...opts,
+      headers: { "Content-Type": "application/json", "X-Console-Pin": PIN, ...(opts.headers || {}) },
+    });
+  } catch (e) {
+    const err = new Error("无法连接电脑端（网络中断或服务已停止）");
+    err.status = 0;
+    throw err;
+  }
+  if (!res.ok) {
+    // 服务端会返回 {"error": "具体原因"}，尽量把它展示出来
+    let detail = "";
+    try {
+      const j = await res.json();
+      detail = (j && (j.error || j.message)) || "";
+    } catch (e) { /* 非 JSON 响应 */ }
+    const err = new Error(detail || ("请求失败（HTTP " + res.status + "）"));
+    err.status = res.status;
+    err.detail = detail;
+    throw err;
+  }
+  return res.json();
+};
+
+/* 登录页：错误提示做成胶囊 + 抖动，按钮有连接中状态 */
+function loginSetError(msg) {
+  const box = $("loginErrBox"), wrap = $("pinWrap");
+  if (msg) {
+    if (box) box.classList.add("show");
+    $("loginErr").textContent = msg;
+    if (wrap) {
+      wrap.classList.add("has-err", "shake");
+      setTimeout(() => wrap.classList.remove("shake"), 420);
+    }
+  } else {
+    if (box) box.classList.remove("show");
+    $("loginErr").textContent = "";
+    if (wrap) wrap.classList.remove("has-err");
+  }
+}
+function loginBusy(on) {
+  const b = $("loginBtn");
+  if (!b) return;
+  b.disabled = !!on;
+  b.innerHTML = on ? '<span class="spin"></span>连接中…' : "连接";
+}
+function showLogin(err) {
+  $("app").style.display = "none";
+  $("login").style.display = "flex";
+  loginSetError(err || "");
+}
+function showApp() {
+  $("login").style.display = "none";
+  $("app").style.display = "flex";
+}
+
+$("loginForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const pin = $("pinInput").value.trim();
+  loginSetError("");
+  if (pin.length !== 8) {
+    loginSetError("请输入 8 位访问密码");
+    return;
+  }
+  loginBusy(true);
+  let res;
+  try {
+    res = await api("/api/login", { method: "POST", body: JSON.stringify({ pin }) });
+  } catch (err) {
+    loginBusy(false);
+    if (err.status === 401) {
+      loginSetError("密码不正确，请核对电脑端管理界面显示的 PIN");
+    } else {
+      loginSetError("无法连接服务器：请确认电脑端控制台正在运行，并核对手机上打开的地址");
+    }
+    return;
+  }
+  PIN = pin; localStorage.setItem("console_pin", pin);
+  showApp(); init();
+  // 提示一次：轻点即可隐藏地址栏（真全屏由手势触发）
+  if (fsAuto && !fsEl() && !isStandalone()) {
+    setTimeout(() => toast("轻点屏幕任意位置即可隐藏地址栏"), 700);
+  }
+});
+
+/* 登录页细节：只让输数字、输满 8 位自动连接、眼睛切换明文 */
+$("pinInput").addEventListener("input", (e) => {
+  const v = e.target.value.replace(/\D/g, "").slice(0, 8);
+  if (v !== e.target.value) e.target.value = v;
+  loginSetError("");
+  if (v.length === 8) {
+    setTimeout(() => {
+      const form = $("loginForm"), btn = $("loginBtn");
+      if (form && (!btn || !btn.disabled)) {
+        if (form.requestSubmit) form.requestSubmit();
+        else form.dispatchEvent(new Event("submit", { cancelable: true }));
+      }
+    }, 130);
+  }
+});
+$("pinEye").addEventListener("click", () => {
+  const i = $("pinInput");
+  i.type = i.type === "password" ? "text" : "password";
+  i.focus();
+});
+
+function fmtSize(n) {
+  if (n == null) return "";
+  if (n < 1024) return n + " B";
+  if (n < 1048576) return (n / 1024).toFixed(1) + " KB";
+  return (n / 1048576).toFixed(1) + " MB";
+}
+function esc(s) {
+  return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/* 轻量 Markdown 渲染（先转义再格式化，防 XSS）*/
+function renderMd(src) {
+  if (!src) return "";
+  let html = esc(src);
+  // 代码块
+  html = html.replace(/```([\s\S]*?)```/g, (m, code) => "<pre class='mdpre'>" + code.replace(/\n$/, "") + "</pre>");
+  // 标题
+  html = html.replace(/^#### (.*)$/gm, "<h5>$1</h5>");
+  html = html.replace(/^### (.*)$/gm, "<h5>$1</h5>");
+  html = html.replace(/^## (.*)$/gm, "<h5>$1</h5>");
+  html = html.replace(/^# (.*)$/gm, "<h5>$1</h5>");
+  // 粗体 / 斜体
+  html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  html = html.replace(/\*([^*\n]+)\*/g, "<em>$1</em>");
+  // 行内代码
+  html = html.replace(/`([^`\n]+)`/g, "<code>$1</code>");
+  // 引用
+  html = html.replace(/^&gt; (.*)$/gm, "<blockquote>$1</blockquote>");
+  // 表格：先删表头分隔行，再转表格行（去分隔符，用 ｜ 显示）
+  html = html.replace(/^\|[\s:|-]+\|$/gm, "");
+  html = html.replace(/^\|(.*)\|$/gm, (m, row) => "<div class='mdrow'>" + row.split("|").map((c) => c.trim()).filter(Boolean).join("<span class='mdsep'>｜</span>") + "</div>");
+  // 列表
+  html = html.replace(/^[-*] (.*)$/gm, "<li class='mdli'>$1</li>");
+  html = html.replace(/^\d+\. (.*)$/gm, "<li class='mdli'>$1</li>");
+  // 水平线
+  html = html.replace(/^---$/gm, "<hr class='mdhr'>");
+  // 换行
+  html = html.replace(/\n/g, "<br>");
+  return html;
+}
+
+/* ---------------- thread list ---------------- */
+/** 相对时间：刚刚 / N分钟 / N小时 / N天 / M-D（DSH 侧栏那种右侧灰小字） */
+function relTime(s) {
+  if (!s) return "";
+  const t = new Date(String(s).replace(" ", "T"));
+  if (isNaN(t)) return "";
+  const diff = Math.max(0, (Date.now() - t.getTime()) / 1000);
+  if (diff < 60) return "刚刚";
+  if (diff < 3600) return Math.floor(diff / 60) + "分钟";
+  if (diff < 86400) return Math.floor(diff / 3600) + "小时";
+  if (diff < 86400 * 30) return Math.floor(diff / 86400) + "天";
+  return (t.getMonth() + 1) + "-" + t.getDate();
+}
+
+function renderList() {
+  const box = $("threadList");
+  box.innerHTML = "";
+  const arr = Object.values(threads).sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
+  const sec = document.createElement("div");
+  sec.className = "side-sec";
+  sec.innerHTML = "<span>最近</span><span class=\"cnt\">" + arr.length + "</span>";
+  box.appendChild(sec);
+  if (!arr.length) {
+    box.insertAdjacentHTML("beforeend", '<div class="side-empty">还没有任务</div>');
+  }
+  for (const t of arr) {
+    const el = document.createElement("div");
+    const active = current && current.kind === "thread" && t.id === current.id;
+    el.className = "thread-item" + (active ? " active" : "") + (t.running ? " running" : "");
+    el.title = t.workdir ? (t.name + "\n" + t.workdir) : t.name;
+    el.innerHTML =
+      '<span class="dot"></span>' +
+      '<span class="sname">' + esc(t.name) + '</span>' +
+      (t.legacy ? '<span class="tlegacy">旧</span>' : '') +
+      '<span class="stime">' + relTime(t.created_at) + '</span>' +
+      '<button class="sdel" title="删除对话">✕</button>';
+    el.onclick = (ev) => { if (!ev.target.classList.contains("sdel")) openConversation(t.id, "thread"); };
+    el.querySelector(".sdel").onclick = async () => {
+      if (!confirm("删除对话“" + t.name + "”及全部历史记录？（DSH 会话本身保留在电脑端）")) return;
+      await api("/api/threads/" + t.id + "/delete", { method: "DELETE" }).catch(() => null);
+      if (current && current.kind === "thread" && current.id === t.id) openConversation(null, "thread");
+      refreshThreads();
+    };
+    box.appendChild(el);
+  }
+}
+
+async function refreshThreads() {
+  const res = await api("/api/threads").catch(() => null);
+  if (!res) return false;
+  const next = {};
+  for (const t of res.threads) next[t.id] = t;
+  threads = next;
+  renderList();
+  if (current && current.kind === "thread" && !threads[current.id]) openConversation(null, "thread");
+  return true;
+}
+
+/* ---------------- desktop sessions (电脑端对话) ---------------- */
+// 记住每个分区上次看过的对话，切换分区时直接回到它（而不是空白页）
+let lastPicked = { thread: null, session: null };
+
+function firstThreadId() {
+  const arr = Object.values(threads).sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
+  return arr.length ? arr[0].id : null;
+}
+
+function firstSessionId() {
+  return desktopSessions.length ? desktopSessions[0].id : null;
+}
+
+function switchTab(mode) {
+  viewMode = mode;
+  $("tabConsole").classList.toggle("active", mode === "console");
+  $("tabDesktop").classList.toggle("active", mode === "desktop");
+  $("threadList").style.display = mode === "console" ? "" : "none";
+  $("desktopList").style.display = mode === "desktop" ? "" : "none";
+  if (streamAbort) { streamAbort.abort(); streamAbort = null; }
+  // 切分区时保持侧栏打开，方便继续挑对话；并自动回到上次看的那条
+  if (mode === "console") {
+    refreshThreads().then(() => {
+      const id = (current && current.kind === "thread" && current.id) ||
+        (threads[lastPicked.thread] ? lastPicked.thread : null) || firstThreadId();
+      openConversation(id || null, "thread", { keepSidebar: true });
+    });
+  } else {
+    refreshDesktopSessions().then(() => {
+      const id = (current && current.kind === "session" && current.id) ||
+        (desktopSessions.some((s) => s.id === lastPicked.session) ? lastPicked.session : null) ||
+        firstSessionId();
+      openConversation(id || null, "session", { keepSidebar: true });
+    });
+  }
+}
+
+async function refreshDesktopSessions() {
+  const res = await api("/api/sessions").catch(() => null);
+  if (!res || !res.sessions) return;
+  desktopSessions = res.sessions.filter((s) => s.source === "desktop");
+  renderDesktopList();
+}
+
+function fmtTime(s) {
+  if (!s) return "";
+  const t = new Date(String(s).replace(" ", "T"));
+  if (isNaN(t)) return String(s);
+  const p = (n) => String(n).padStart(2, "0");
+  return (t.getMonth() + 1) + "-" + p(t.getDate()) + " " + p(t.getHours()) + ":" + p(t.getMinutes());
+}
+
+function renderDesktopList() {
+  const box = $("desktopList");
+  box.innerHTML = "";
+  const sec = document.createElement("div");
+  sec.className = "side-sec";
+  sec.innerHTML = "<span>最近</span><span class=\"cnt\">" + desktopSessions.length + "</span>";
+  box.appendChild(sec);
+  if (!desktopSessions.length) {
+    box.insertAdjacentHTML("beforeend", '<div class="side-empty">还没有找到电脑端对话</div>');
+    return;
+  }
+  for (const s of desktopSessions) {
+    const el = document.createElement("div");
+    const active = current && current.kind === "session" && s.id === current.id;
+    el.className = "thread-item" + (active ? " active" : "") + (s.running ? " running" : "");
+    el.title = s.cwd || "";
+    el.innerHTML =
+      '<span class="dot"></span>' +
+      '<span class="sname">' + esc(s.name || "(无标题)") + '</span>' +
+      '<span class="stime">' + relTime(s.updated) + '</span>';
+    el.onclick = () => openConversation(s.id, "session");
+    box.appendChild(el);
+  }
+}
+
+$("tabConsole").onclick = () => switchTab("console");
+$("tabDesktop").onclick = () => switchTab("desktop");
+
+/* ---------------- conversation view ---------------- */
+function chat() { return $("chat"); }
+
+function makeMsg(kind, html) {
+  const el = document.createElement("div");
+  el.className = "msg " + kind;
+  el.innerHTML = html;
+  chat().appendChild(el);
+  scrollBottom();
+  return el;
+}
+
+/* 智能滚动：只有用户已在底部附近时才自动跟随新内容；
+   用户上滑查看历史时绝不强制滚回底部（否则没法看旧消息）。 */
+let userScrolledUp = false;
+function nearBottom() {
+  const c = chat();
+  return c.scrollHeight - c.scrollTop - c.clientHeight < 140;
+}
+function scrollBottom(force) {
+  const c = chat();
+  if (force || (!userScrolledUp && nearBottom())) {
+    c.scrollTop = c.scrollHeight;
+  }
+}
+/* 渲染完成后定位到底部：正在跟随时才贴底，用户上滑看历史时绝不打扰 */
+function settleBottom() {
+  if (state.opening) {
+    state.opening = false;
+    userScrolledUp = false;
+  }
+  if (userScrolledUp) { updateToBottom(); return; }
+  const c = chat();
+  c.scrollTop = c.scrollHeight;
+  updateToBottom();
+}
+$("chat").addEventListener("scroll", () => {
+  userScrolledUp = !nearBottom();
+  updateToBottom();
+});
+
+function clearChat() {
+  chat().innerHTML = '<div class="empty"><img src="/icons/icon-192.png" alt=""><div>等待智能体开始工作…</div></div>';
+  userScrolledUp = false;  // 切换对话后恢复自动跟随（定位到最新内容）
+  updateToBottom();
+  state.byId = {};
+  state.fp = {};
+  state.order = [];
+  turnDoneShown = {};
+  renderStatus(null);      // 状态条等这一轮的轮询结果再填
+}
+
+function updateDot() {
+  $("statusDot").className = "dot" + (state.running ? " run" : "");
+  const t = $("statusText");
+  if (t) t.textContent = state.running ? "运行中" : "空闲";
+  // 发送键兼任「停止」：运行中变成红色方块，省掉一个常驻按钮，输入栏不再挤
+  const b = $("sendBtn");
+  if (b) {
+    const usable = !!(current && current.id);   // 没打开对话时保持禁用（输入栏仍然可见）
+    b.textContent = state.running ? "■" : "➤";
+    b.title = state.running ? "停止运行" : "发送";
+    b.classList.toggle("stop", !!state.running);
+    b.disabled = !usable;
+    b.style.opacity = usable ? "" : ".5";
+  }
+}
+
+/* 回到最新：用户上滑查看历史时浮现 */
+function updateToBottom() {
+  const btn = $("toBottom");
+  if (!btn) return;
+  btn.classList.toggle("show", !!userScrolledUp);
+}
+$("toBottom").onclick = () => {
+  const c = chat();
+  c.scrollTop = c.scrollHeight;
+  userScrolledUp = false;
+  updateToBottom();
+};
+
+function openConversation(id, kind, opts) {
+  const keepSidebar = !!(opts && opts.keepSidebar);
+  const sameTarget = !!(current && current.kind === kind && current.id === id && id);
+  if (sameTarget) {
+    // 重复打开同一条：只收起侧栏，不重连也不清空
+    if (!keepSidebar) {
+      $("sidebar").classList.remove("open");
+      $("mask").classList.remove("show");
+    }
+    return;
+  }
+  if (streamAbort) { streamAbort.abort(); streamAbort = null; }
+  if (streamPollTimer) { clearInterval(streamPollTimer); streamPollTimer = null; }
+  if (syncTimer) { clearInterval(syncTimer); syncTimer = null; }
+  current = { kind, id };
+  if (id) lastPicked[kind === "thread" ? "thread" : "session"] = id;
+  state.running = false;
+  state.opening = true;   // 本次打开：渲染完成后定位到最新内容
+  clearChat();
+  updateDot();
+  if (!keepSidebar) {                     // 选中具体对话才收起侧栏；切分区时保持展开
+    $("sidebar").classList.remove("open");
+    $("mask").classList.remove("show");
+  }
+  if (kind === "console" || kind === "thread") {
+    renderList();
+  } else {
+    renderDesktopList();
+  }
+  if (!id) {
+    // 没有可打开的对话时，输入栏也保留（只是禁用），否则用户会以为「输入栏不见了」
+    setComposerEnabled(false, kind === "session" ? "先在上面选一段电脑端对话…" : "先在左侧选择一个任务…");
+    $("appTitle").textContent = "远程控制台";
+    attachments = []; renderAttachments();
+    return;
+  }
+  const t = kind === "thread" ? threads[id] : desktopSessions.find((x) => x.id === id);
+  $("appTitle").textContent = (t && t.name ? t.name : "对话").slice(0, 18);
+  $("attachWrap").style.display = "flex";
+  $("attachBtn").style.display = "";
+  setComposerEnabled(true, kind === "thread" ? "给智能体发指令…" : "继续这段对话…");
+  state.running = !!(t && t.running);
+  updateDot();
+  attachments = []; renderAttachments();
+  openStream();
+  startSync();
+}
+
+/* 输入栏下方那行状态：轮/步、速度、token、缓存命中、余额与消费 */
+function fmtCompact(n) {
+  const v = Number(n) || 0;
+  if (v >= 1e9) return (v / 1e9).toFixed(2).replace(/\.?0+$/, "") + "B";
+  if (v >= 1e6) return (v / 1e6).toFixed(1).replace(/\.0$/, "") + "M";
+  if (v >= 1e3) return (v / 1e3).toFixed(1).replace(/\.0$/, "") + "K";
+  return String(Math.round(v));
+}
+function renderStatus(status) {
+  const bar = $("statusbar");
+  const wrap = $("attachWrap");
+  const s = (status && status.session) || null;
+  const m = (status && status.money) || null;
+  const hasData = !!(s && (s.turns || s.steps || s.tokens)) || !!(m && (m.balance != null || m.officialCost != null));
+  if (!hasData) {
+    bar.classList.remove("on");
+    wrap.classList.remove("hasstatus");
+    bar.innerHTML = "";
+    syncFab();
+    return;
+  }
+  const parts = [];
+  if (s && (s.turns || s.steps)) parts.push(`<span class="sb"><b>${s.turns || 0}</b> 轮 <b>${fmtCompact(s.steps || 0)}</b> 步</span>`);
+  if (s && s.tps) parts.push(`<span class="sb hot"><b>${s.tps}</b> tok/s</span>`);
+  if (s && s.tokens) parts.push(`<span class="sb"><b>${fmtCompact(s.tokens)}</b> tok</span>`);
+  if (s && s.cacheHit != null) parts.push(`<span class="sb">命中 <b>${s.cacheHit}%</b></span>`);
+  if (m && m.balance != null) {
+    const low = Number(m.balance) < 1 ? " warn" : "";
+    parts.push(`<span class="sb${low}">余额 <b>¥${m.balance}</b></span>`);
+  }
+  if (m && m.officialCost != null) parts.push(`<span class="sb">官网 <b>¥${Number(m.officialCost).toFixed(2)}</b></span>`);
+  if (m && m.chatCost != null) parts.push(`<span class="sb">本对话 <b>≈¥${Number(m.chatCost).toFixed(2)}</b></span>`);
+  if (m && m.avgPer1e8 != null) parts.push(`<span class="sb">均 <b>¥${m.avgPer1e8}</b>/亿tok</span>`);
+  bar.innerHTML = parts.join('<span class="sep">·</span>');
+  bar.classList.add("on");
+  wrap.classList.add("hasstatus");
+  syncFab();
+}
+
+/* 悬浮的回到底部按钮/提示条要跟着输入区高度走（状态条会改变高度） */
+function syncFab() {
+  const aw = $("attachWrap");
+  const h = (aw && aw.getBoundingClientRect().height) || 0;
+  const btn = $("toBottom");
+  if (btn) btn.style.bottom = Math.round(h + 16) + "px";
+  const t = $("toast");
+  if (t) t.style.bottom = Math.round(h + 34) + "px";
+}
+window.addEventListener("resize", syncFab);
+
+$("statusbar").onclick = () => $("settingsBtn").click();
+
+/* 输入栏只在「有对话可发」时才可用，但始终可见（不再整条隐藏） */
+function setComposerEnabled(enabled, placeholder) {
+  $("attachWrap").style.display = "flex";
+  const inp = $("input");
+  inp.disabled = !enabled;
+  if (placeholder) inp.placeholder = placeholder;
+  $("attachBtn").disabled = !enabled;
+  const send = $("sendBtn");
+  send.disabled = !enabled;
+  send.style.opacity = enabled ? "" : ".5";
+}
+
+/* ---- unified stream (SSE, with polling fallback for old browsers) ---- */
+let streamPollTimer = null;
+
+async function openStream() {
+  if (!current || !current.id) return;
+  const ctrl = new AbortController();
+  streamAbort = ctrl;
+  const path = current.kind === "thread"
+    ? "/api/threads/" + current.id + "/stream"
+    : "/api/sessions/" + current.id + "/stream";
+  try {
+    const res = await fetch(path, { headers: { "X-Console-Pin": PIN }, signal: ctrl.signal });
+    if (!res.ok || !res.body) throw new Error("stream failed " + res.status);
+    streamRetry = 0;
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let idx;
+      while ((idx = buf.indexOf("\n\n")) >= 0) {
+        const block = buf.slice(0, idx).trim();
+        buf = buf.slice(idx + 2);
+        if (block.startsWith("data: ")) {
+          try {
+            const ev = JSON.parse(block.slice(6));
+            if (ev.type === "session.snapshot") {
+              applySnapshot(ev.session || {}, ev.items || []);
+            } else if (ev.type === "session.item") {
+              upsertItem(ev.item, false);
+            } else if (ev.type === "session.item_update") {
+              upsertItem(ev.item, true);
+            }
+          } catch (e) { /* ignore malformed */ }
+        }
+      }
+    }
+  } catch (e) {
+    if (e.name !== "AbortError" && current && current.id) {
+      // 流式出错时无需特殊处理：常驻同步轮询 startSync 保证消息可见
+    }
+  }
+}
+
+/* 常驻同步轮询：与 SSE 并存。SSE 给即时性，轮询兜底——
+   即使流式在手机网络下静默卡死/浏览器不支持，消息和 running 状态
+   也会每 3 秒从服务端对账更新，保证发送按钮永不被卡死。
+   只对"有变化"的条目做 DOM 更新，避免长对话轮询时反复重绘卡顿。 */
+let syncTimer = null;
+function itemFp(it) {
+  return it.kind + "|" + String(it.text || "").length + "|" +
+    String(it.output || "").length + "|" + String(it.args || "").length +
+    "|" + (it.status || "") + "|" + (it.stream ? "1" : "0");
+}
+function startSync() {
+  if (syncTimer) clearInterval(syncTimer);
+  const poll = async () => {
+    if (!current || !current.id) {
+      if (syncTimer) { clearInterval(syncTimer); syncTimer = null; }
+      return;
+    }
+    const d = await api("/api/sessions/" + current.id).catch(() => null);
+    if (!d || !current || !current.id) return;
+    state.running = !!d.running;
+    updateDot();
+    renderStatus(d.status);
+    for (const it of (d.items || [])) {
+      const fp = itemFp(it);
+      if (state.fp && state.fp[it.id] === fp) continue; // 无变化，跳过重绘
+      if (!state.fp) state.fp = {};
+      state.fp[it.id] = fp;
+      upsertItem(it, false);
+    }
+    requestAnimationFrame(settleBottom);   // 首次轮询渲染完定位到底部
+  };
+  poll();
+  syncTimer = setInterval(poll, 3000);
+}
+
+/* ---------------- item rendering ----------------
+   opts.quiet  = 不要自动滚动（整批更新时由调用方统一处理位置） */
+function upsertItem(it, isUpdate, opts) {
+  if (!it || !it.id) return;
+  const k = it.kind;
+  if (k === "status") {
+    state.running = !!it.running;
+    updateDot();
+    return;
+  }
+  if (k === "turn_done") {
+    if (!turnDoneShown[it.id]) {
+      turnDoneShown[it.id] = true;
+      makeMsg("usage", "✓ 完成");
+    }
+    return;
+  }
+  let el = state.byId[it.id];
+  const isNew = !el;
+  if (!el) {
+    el = createItemEl(it);
+    if (!el) return;
+    chat().appendChild(el);
+    state.byId[it.id] = el;
+  }
+  // 内容没变化就跳过重绘：服务端每 1.5 秒推一次全量快照，靠这个把开销压到接近零
+  const fp = itemFp(it);
+  if (!isNew && state.fp[it.id] === fp && !(opts && opts.force)) return;
+  state.fp[it.id] = fp;
+  updateItemEl(el, it);
+  if (!(opts && opts.quiet)) scrollBottom();
+}
+
+/* 整批重建聊天区（快照条目顺序变了时才会用到）。
+   关键：保住用户原来的阅读位置 —— 贴着底部的继续贴底部，正在往上翻的不会被甩到最顶端。 */
+function rebuildChat(list) {
+  const box = chat();
+  const stick = !userScrolledUp && nearBottom();
+  const prevTop = box.scrollTop;
+  const prevHeight = box.scrollHeight;
+  box.innerHTML = "";
+  state.byId = {};
+  state.fp = {};
+  for (const it of list) upsertItem(it, false, { quiet: true });
+  const restore = () => {
+    if (stick || state.opening) {
+      state.opening = false;
+      userScrolledUp = false;
+      box.scrollTop = box.scrollHeight;
+    } else {
+      // 按内容高度差补偿，尽量停在原来那段内容上
+      box.scrollTop = Math.max(0, prevTop + (box.scrollHeight - prevHeight));
+    }
+    updateToBottom();
+  };
+  requestAnimationFrame(restore);
+  setTimeout(restore, 90);      // 图片/长内容布局稳定后再校准一次
+}
+
+/* 收到 session.snapshot：优先增量更新（顺序没变时不动 DOM 结构），必要时才整批重建 */
+function applySnapshot(meta, items) {
+  if (meta && typeof meta.running !== "undefined") {
+    state.running = !!meta.running;
+    updateDot();
+  }
+  const list = (items || []).filter((it) => it && it.id);
+  const ids = list.map((it) => it.id);
+  const prev = state.order || [];
+  const sameOrder = prev.length <= ids.length && prev.every((id, i) => ids[i] === id);
+  const stick = !userScrolledUp && nearBottom();
+  if (sameOrder) {
+    for (const it of list) upsertItem(it, false, { quiet: true });
+  } else {
+    rebuildChat(list);
+  }
+  state.order = ids;
+  if (sameOrder && (stick || state.opening)) {
+    state.opening = false;
+    userScrolledUp = false;
+    const box = chat();
+    requestAnimationFrame(() => { box.scrollTop = box.scrollHeight; updateToBottom(); });
+  }
+}
+
+function fmtClock(at) {
+  if (!at) return "";
+  const s = String(at);
+  const i = s.indexOf("T");
+  return (i >= 0 && s.length >= i + 6) ? s.slice(i + 1, i + 6) : "";
+}
+
+function createItemEl(it) {
+  const k = it.kind;
+  if (k === "user") {
+    const tm = fmtClock(it.at);
+    const el = makeMsg("user", `<div class="mbody">${esc(it.text)}</div>` +
+      (tm ? `<div class="mtime">${tm}</div>` : "") +
+      `<button class="medit" title="修改后重新发送">✎</button>`);
+    el.querySelector(".medit").onclick = () => { $("input").value = it.text; $("input").focus(); };
+    return el;
+  }
+  if (k === "agent") {
+    const el = document.createElement("div");
+    el.className = "msg agent" + (it.stream ? " stream" : "");
+    const tm = fmtClock(it.at);
+    el.innerHTML = `<div class="mbody">${renderMd(it.text || "")}</div>` +
+      (tm ? `<div class="mtime">${tm}</div>` : "");
+    return el;
+  }
+  if (k === "reasoning") {
+    const el = document.createElement("details");
+    el.className = "reasoning";
+    el.open = false;
+    el.innerHTML = "<summary>💭 思考</summary><div class='rtext'></div>";
+    el.querySelector(".rtext").textContent = it.text || "";
+    return el;
+  }
+  if (k === "tool") {
+    const el = document.createElement("div");
+    el.className = "tool";
+    el.innerHTML = `<div class="toolhead"><span class="status run">运行中</span><span class="tname">🛠 ${esc(it.name || "工具")}</span></div>
+      <details class="targs"><summary>参数</summary><pre class="tpre"></pre></details>
+      <details class="tres"><summary>结果</summary><pre class="tpre"></pre></details>`;
+    if (it.args) el.querySelector(".targs pre").textContent = it.args;
+    return el;
+  }
+  if (k === "command" || k === "command_update") {
+    const el = document.createElement("div");
+    el.className = "cmd";
+    el.innerHTML = `<div class="cmdhead"><span class="status run">运行中</span><span class="cmdline">${esc(it.command || "")}</span></div>
+      <details class="tout"><summary>输出</summary><pre></pre></details>`;
+    if (it.output != null) {
+      const st = el.querySelector(".status"), pre = el.querySelector("pre");
+      st.textContent = it.status === "done" ? "成功" : "失败";
+      st.className = "status " + (it.status === "done" ? "ok" : "fail");
+      pre.textContent = it.output;
+    }
+    return el;
+  }
+  if (k === "notice") {
+    // 后端在条目过多时会插入一条提示（例如「更早的 N 条记录已省略」）
+    return makeMsg("system", esc(it.text || ""));
+  }
+  if (k === "error") {
+    const el = makeMsg("error", "出错了：" + esc(it.text || ""));
+    return el;
+  }
+  if (k === "question") {
+    return buildQuestionEl(it);
+  }
+  return null;
+}
+
+function updateItemEl(el, it) {
+  const k = it.kind;
+  if (k === "user") return;
+  if (k === "notice") { el.textContent = it.text || ""; return; }
+  if (k === "agent") {
+    const b = el.querySelector(".mbody");
+    if (b) b.innerHTML = renderMd(it.text || "");
+    else el.textContent = it.text || "";
+    el.classList.toggle("stream", !!it.stream);
+    return;
+  }
+  if (k === "reasoning") {
+    const r = el.querySelector(".rtext");
+    if (r) r.textContent = it.text || "";
+    return;
+  }
+  if (k === "tool") {
+    const head = el.querySelector(".toolhead");
+    if (head && it.status !== "run") {
+      const st = head.querySelector(".status");
+      st.textContent = it.status === "done" ? "成功" : "失败";
+      st.className = "status " + (it.status === "done" ? "ok" : "fail");
+    }
+    const targs = el.querySelector(".targs pre");
+    if (targs && it.args) targs.textContent = it.args;
+    const tres = el.querySelector(".tres pre");
+    if (tres && it.output != null) tres.textContent = it.output;
+    return;
+  }
+  if (k === "command" || k === "command_update") {
+    const st = el.querySelector(".status"), pre = el.querySelector("pre");
+    if (it.status === "done" || it.status === "fail") {
+      st.textContent = it.status === "done" ? "成功" : "失败";
+      st.className = "status " + (it.status === "done" ? "ok" : "fail");
+    }
+    if (it.output != null) pre.textContent = it.output;
+    if (it.command) el.querySelector(".cmdline").textContent = it.command;
+    return;
+  }
+  if (k === "question") {
+    // 状态更新（如已回答）
+    return;
+  }
+}
+
+/* ---- question card（agent 提问 → 手机回答） ---- */
+function buildQuestionEl(it) {
+  const el = document.createElement("div");
+  el.className = "question";
+  const list = it.questions || [];
+  let html = "<div class='qhead'>🤔 智能体向你提问</div>";
+  list.forEach((q, qi) => {
+    html += `<div class='qitem'><div class='qtext'>${esc(q.question || "")}</div>`;
+    if (q.options && q.options.length) {
+      html += q.options.map((o) =>
+        `<label class='qopt'><input type='radio' name='q${it.id}_${qi}' value="${esc(o.label)}"> ${esc(o.label)}</label>`
+      ).join("");
+    }
+    html += `<input class='qcustom' data-qi="${qi}" placeholder="自定义回答（可选）">`;
+    html += "</div>";
+  });
+  html += `<div class='row'><button class="primary qsubmit">回答</button></div>`;
+  el.innerHTML = html;
+  el.querySelector(".qsubmit").onclick = () => submitQuestion(it, el);
+  return el;
+}
+
+async function submitQuestion(it, el) {
+  const answers = (it.questions || []).map((q, qi) => {
+    const checked = el.querySelector(`input[name='q${it.id}_${qi}']:checked`);
+    const custom = el.querySelector(`input[data-qi='${qi}']`).value.trim();
+    return { id: q.id, selected: checked ? [checked.value] : [], custom: custom || undefined };
+  });
+  const btn = el.querySelector(".qsubmit");
+  btn.disabled = true;
+  btn.textContent = "发送中…";
+  try {
+    await api("/api/answer", {
+      method: "POST",
+      body: JSON.stringify({ sessionId: it.sessionId, rpcId: it.rpc_id, answers }),
+    });
+    el.querySelector(".qhead").textContent = "✅ 已回答";
+    btn.remove();
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = "发送失败，重试";
+  }
+}
+
+/* ---------------- composer ---------------- */
+async function send() {
+  const v = $("input").value.trim();
+  const hasAtt = attachments.some((a) => a.status === "ok");
+  if ((!v && !hasAtt) || !current || !current.id || state.running) return;
+  if (attachments.some((a) => a.status !== "ok")) {
+    makeMsg("error", "有附件尚未上传完成，请稍候或移除后重试");
+    return;
+  }
+  $("input").value = "";
+  const images = attachments.filter((a) => a.kind === "image").map((a) => a.path);
+  const files = attachments.filter((a) => a.kind === "file").map((a) => a.path);
+  const prompt = v || (images.length ? "[图片附件]" : "[文件附件]");
+  if (current.kind === "thread") {
+    let res;
+    try {
+      res = await api("/api/threads/" + current.id + "/send", {
+        method: "POST", body: JSON.stringify({ prompt, images, files }),
+      });
+    } catch (e) {
+      makeMsg("error", "发送失败：" + (e.message || "未知原因"));
+      return;
+    }
+    if (res && res.error === "thread is busy") { makeMsg("error", "任务正在运行中，请先停止"); return; }
+  } else {
+    let res;
+    try {
+      res = await api("/api/sessions/" + current.id + "/continue", {
+        method: "POST", body: JSON.stringify({ prompt, images, files }),
+      });
+    } catch (e) {
+      makeMsg("error", "发送失败：" + (e.message || "未知原因"));
+      return;
+    }
+    if (res && res.error === "busy") { makeMsg("error", "这段对话正在运行中，请稍候"); return; }
+  }
+  if (images.length || files.length) {
+    makeMsg("system", "📎 已附带：" + [...images, ...files].map((p) => p.split(/[\\/]/).pop()).join("、"));
+    attachments = []; renderAttachments();
+  }
+}
+$("sendBtn").onclick = () => {
+  if (!current || !current.id) { toast("先在左侧选择一个任务再发送"); return; }
+  state.running ? stopRun() : send();
+};
+$("input").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    if (state.running || !current || !current.id) return;   // 运行中/未选对话时不重复发送
+    send();
+  }
+});
+async function stopRun() {
+  if (!current || !current.id) return;
+  const path = current.kind === "thread"
+    ? "/api/threads/" + current.id + "/stop"
+    : "/api/sessions/" + current.id + "/stop";
+  const b = $("sendBtn");
+  b.disabled = true;
+  await api(path, { method: "POST" }).catch(() => null);
+  updateDot();      // 恢复按钮状态（没对话时保持禁用）
+}
+
+/* ---------------- file upload ---------------- */
+function isImage(name) {
+  return /\.(png|jpe?g|gif|webp|bmp)$/i.test(name);
+}
+function attStatusText(a) {
+  if (a.status === "ok") return "";
+  if (a.status === "fail") return "失败 ⟳";
+  return "上传中 " + (a.pct || 0) + "%";
+}
+function renderAttachments() {
+  const box = $("attachments");
+  box.innerHTML = "";
+  for (const a of attachments) {
+    const chip = document.createElement("span");
+    chip.className = "achip " + a.status;
+    if (a.status === "fail" && a.err) chip.title = a.err;
+    const statusText = attStatusText(a);
+    let thumb = "";
+    if (a.kind === "image" && a.path) {
+      thumb = `<img class="achip-img" src="/api/raw?path=${encodeURIComponent(a.path)}" alt="">`;
+    }
+    chip.innerHTML = `${thumb}<span class="aname">${esc(a.name)}</span>` +
+      (statusText ? `<span class="astatus">${statusText}</span>` : "") +
+      `<button class="adel" title="移除">✕</button>`;
+    chip.querySelector(".adel").onclick = () => {
+      attachments = attachments.filter((x) => x !== a);
+      renderAttachments();
+    };
+    if (a.status === "fail") {   // 失败的条目点一下重试
+      chip.style.cursor = "pointer";
+      chip.addEventListener("click", (ev) => {
+        if (ev.target && ev.target.closest && ev.target.closest(".adel")) return;
+        retryUpload(a);
+      });
+    }
+    a._el = chip;
+    box.appendChild(chip);
+  }
+}
+
+/** 上传一个附件（压缩 → 进度 → 超时/失败可重试） */
+async function doUpload(att, file0) {
+  att.status = "up"; att.pct = 0; att.err = null; att._el = null;
+  renderAttachments();
+  if (!file0) { att.status = "fail"; att.err = "原始文件已丢失，请重新选择"; renderAttachments(); return; }
+  if (file0.size > 25 * 1024 * 1024) {
+    att.status = "fail"; att.err = "文件过大（>25MB），请先压缩再传"; renderAttachments(); return;
+  }
+  const f = await compressForUpload(file0);
+  if (f && f.name) att.name = f.name;
+  renderAttachments();
+  const up = current.kind === "thread"
+    ? "/api/threads/" + current.id + "/upload"
+    : "/api/sessions/" + current.id + "/upload";
+  const r = await uploadWithProgress(f, up, (p) => {
+    att.pct = Math.round(p * 100);
+    // 只改文字，不整块重建：否则进度频繁刷新会让缩略图反复请求
+    if (att._el) {
+      const s = att._el.querySelector(".astatus");
+      if (s) s.textContent = "上传中 " + att.pct + "%";
+    }
+  });
+  att.status = r.ok ? "ok" : "fail";
+  att.path = r.ok ? r.data.path : null;
+  att.err = r.ok ? null : (r.error || ("HTTP " + r.status));
+  renderAttachments();
+}
+
+async function retryUpload(att) {
+  await doUpload(att, att.file);
+}
+async function uploadFile(file) {
+  try {
+    const up = current.kind === "thread"
+      ? "/api/threads/" + current.id + "/upload"
+      : "/api/sessions/" + current.id + "/upload";
+    const res = await fetch(up, {
+      method: "POST",
+      headers: { "X-Console-Pin": PIN, "X-Filename": encodeURIComponent(file.name) },
+      body: file,
+    });
+    return res.ok ? res.json() : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+/* 带进度 + 超时的上传（fetch 没有超时，隧道一抖就会永远挂着 —— 真机表现为"卡死"） */
+function uploadWithProgress(file, url, onProgress) {
+  return new Promise((resolve) => {
+    let xhr;
+    try { xhr = new XMLHttpRequest(); } catch (e) { resolve({ ok: false, error: "当前环境不支持上传" }); return; }
+    xhr.open("POST", url, true);
+    xhr.timeout = 120000;                     // 2 分钟还没传完就当失败，给出明确提示
+    xhr.setRequestHeader("X-Console-Pin", PIN);
+    xhr.setRequestHeader("X-Filename", encodeURIComponent(file.name));
+    if (xhr.upload && onProgress) {
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) onProgress(Math.min(1, e.loaded / e.total));
+      };
+    }
+    const done = (r) => resolve(r);
+    xhr.onload = () => {
+      let data = null;
+      try { data = JSON.parse(xhr.responseText); } catch (e) { /* 非 JSON */ }
+      done({ ok: xhr.status >= 200 && xhr.status < 300 && data && data.path,
+             data, status: xhr.status, error: data && data.error });
+    };
+    xhr.onerror = () => done({ ok: false, status: 0, error: "网络中断" });
+    xhr.ontimeout = () => done({ ok: false, status: 0, error: "上传超时" });
+    xhr.onabort = () => done({ ok: false, status: 0, error: "已取消" });
+    try { xhr.send(file); } catch (e) { done({ ok: false, status: 0, error: "发送失败" }); }
+  });
+}
+
+/* 上传前压一下图片：手机原图动辄 3~8MB，走隧道很容易传不完 */
+function compressForUpload(file) {
+  return new Promise((resolve) => {
+    try {
+      const isImg = /^image\//.test(file.type || "");
+      if (!isImg || /gif/i.test(file.type || "")) { resolve(file); return; }   // gif 压了会丢动画
+      if (file.size < 500 * 1024) { resolve(file); return; }                   // 小图没必要压
+      compressImage(file, 1600, 0.85, (dataUrl) => {
+        if (!dataUrl) { resolve(file); return; }
+        try {
+          const bin = atob(dataUrl.split(",")[1]);
+          const arr = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+          const name = (file.name || "image").replace(/\.(png|jpe?g|webp|bmp)$/i, "") + ".jpg";
+          resolve(new File([arr], name, { type: "image/jpeg" }));
+        } catch (e) { resolve(file); }
+      });
+    } catch (e) { resolve(file); }
+  });
+}
+$("attachBtn").onclick = () => $("fileInput").click();
+$("fileInput").addEventListener("change", async (e) => {
+  const files = [...e.target.files];
+  e.target.value = "";
+  if (!files.length) return;
+  if (!current || current.kind !== "thread" || !current.id) { makeMsg("error", "请先选择或新建一个任务再上传"); return; }
+  for (const f of files) {
+    const att = {
+      name: f.name, status: "up", pct: 0,
+      kind: isImage(f.name) ? "image" : "file",
+      path: null, file: f,
+    };
+    attachments.push(att);
+    await doUpload(att, f);
+  }
+});
+
+/* ---------------- new thread / file browser ---------------- */
+let browseMode = "pick";
+let phoneWorkspace = "";      // 「手机任务」工作区目录（新建任务默认用它，保证归组）
+let workdirRoot = "";
+$("newBtn").onclick = () => {
+  $("ntWorkdir").value = phoneWorkspace || workdirRoot || "";
+  $("ntName").value = "";
+  $("ntPrompt").value = "";
+  $("newModal").classList.add("show");
+};
+$("ntCancel").onclick = () => $("newModal").classList.remove("show");
+$("ntBrowse").onclick = () => { browseMode = "pick"; openBrowser(""); };
+$("ntCreate").onclick = async () => {
+  const name = $("ntName").value.trim();
+  const prompt = $("ntPrompt").value.trim();
+  const workdir = $("ntWorkdir").value.trim();
+  let res;
+  try {
+    res = await api("/api/threads", {
+      method: "POST", body: JSON.stringify({ name, workdir, prompt }),
+    });
+  } catch (e) {
+    makeMsg("error", "创建任务失败：" + (e.message || "未知原因"));
+    return;
+  }
+  if (!res || !res.thread) { makeMsg("error", "创建任务失败：电脑端未返回任务信息"); return; }
+  $("newModal").classList.remove("show");
+  switchTab("console");
+  await refreshThreads();
+  openConversation(res.thread.id, "thread");
+};
+
+async function openBrowser(path) {
+  $("fileModal").classList.add("show");
+  await loadFiles(path);
+}
+async function loadFiles(path) {
+  const res = await api("/api/files?path=" + encodeURIComponent(path || "")).catch(() => null);
+  if (!res) return;
+  $("browserPath").textContent = res.path;
+  const box = $("fileList");
+  box.innerHTML = "";
+  if (res.can_up) {
+    const up = document.createElement("div");
+    up.className = "fentry";
+    up.innerHTML = "<span class='ic'>↩</span><span class='fname'>上一级</span>";
+    up.onclick = () => loadFiles(res.path.split(/[\\/]/).slice(0, -1).join("\\"));
+    box.appendChild(up);
+  }
+  for (const e of res.entries) {
+    const el = document.createElement("div");
+    el.className = "fentry";
+    el.innerHTML = `<span class='ic'>${e.dir ? "📁" : "📄"}</span>
+      <span class='fname'>${esc(e.name)}</span>
+      <span class='finfo'>${e.dir ? "" : fmtSize(e.size)}</span>`;
+    el.onclick = () => { if (e.dir) loadFiles(res.path + "\\" + e.name); };
+    box.appendChild(el);
+  }
+  window._fbPath = res.path;
+}
+$("fbCancel").onclick = () => $("fileModal").classList.remove("show");
+$("fbPick").onclick = () => {
+  if (browseMode === "pick") {
+    $("ntWorkdir").value = window._fbPath || "";
+    $("fileModal").classList.remove("show");
+  }
+};
+$("fbMkdir").onclick = async () => {
+  const name = $("fbNewDir").value.trim();
+  if (!name || !window._fbPath) return;
+  const path = window._fbPath + "\\" + name;
+  const res = await api("/api/fs/mkdir", { method: "POST", body: JSON.stringify({ path }) }).catch(() => null);
+  if (res && res.ok) { $("fbNewDir").value = ""; loadFiles(window._fbPath); }
+};
+
+$("menuBtn").onclick = () => { $("sidebar").classList.toggle("open"); $("mask").classList.toggle("show"); };
+$("mask").onclick = () => { $("sidebar").classList.remove("open"); $("mask").classList.remove("show"); };
+
+/* ---------------- 全屏（不显示浏览器界面） ----------------
+   两种途径：
+   1) 浏览器支持全屏 API（安卓 Chrome / Edge / 微信等）→ 点 ⛶ 直接进真全屏；
+   2) 不支持的（iPhone Safari）→ 只能「添加到主屏幕」，从桌面图标打开即为无浏览器界面。
+   macOS/桌面浏览器同样可用。 */
+const FS_KEY = "console_fs_auto";
+// 默认关闭：真机实测（屏幕 377x831，全屏后视口只有 377x792）说明这台机器的 Chrome
+// 全屏时**只隐藏状态栏、没把那条空间还给页面**，顶部因此永远留一条约 38px 的系统黑边。
+// 要做到"没有地址栏也没有黑边"，请用「添加到主屏幕」（manifest 已改为 standalone 优先）。
+// 只有用户显式打开过才用全屏 API（有些机型是真无边框的）。
+let fsAuto = localStorage.getItem(FS_KEY) === "1";
+const fsApi = document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen;
+
+function fsEl() { return document.fullscreenElement || document.webkitFullscreenElement || null; }
+
+/* 全屏切换时有的手机浏览器会把可视高度算歪，导致界面比屏幕高、底部输入栏被顶到屏幕外。
+   这里在「全屏 / 已添加到主屏幕」时按真实可视高度锁定，普通浏览模式交回 CSS（100%）。 */
+function syncAppHeight() {
+  const app = $("app");
+  if (!app) return;
+  const vv = window.visualViewport;
+  const zoomed = vv && vv.scale > 1.01;               // 用户双指放大时不要跟着变
+  if (zoomed) { app.style.height = ""; return; }
+  // 需要按"可视高度"锁定壳高的三种情况：
+  //   1) 网页全屏（浏览器界面已隐藏）
+  //   2) 已添加到主屏（standalone）
+  //   3) 软键盘弹起 —— visualViewport 明显矮于布局视口时说明键盘吃掉了底部空间。
+  //      不跟着缩的话，底部输入栏会被键盘压住看不见（Android Chrome 默认
+  //      interactive-widget=resizes-visual，布局视口不缩）。
+  const keyboard = !!(vv && window.innerHeight && vv.height < window.innerHeight - 120);
+  if (!(fsEl() || isStandalone() || keyboard)) { app.style.height = ""; return; }
+  const h = Math.round((vv && vv.height) || window.innerHeight || 0);
+  app.style.height = h > 0 ? h + "px" : "";
+}
+window.addEventListener("resize", syncAppHeight);
+window.addEventListener("orientationchange", () => setTimeout(syncAppHeight, 300));
+if (window.visualViewport) window.visualViewport.addEventListener("resize", syncAppHeight);
+/* 软键盘弹起/收起会让可视高度变化，聚焦输入框后稍等一下再重新贴底，
+   保证刚点的输入框和最新一条消息都在屏幕内。 */
+function onComposerFocus() {
+  setTimeout(() => { syncAppHeight(); scrollBottom(true); }, 320);
+}
+const composerInput = $("input");
+if (composerInput) composerInput.addEventListener("focus", onComposerFocus);
+function isStandalone() {
+  return (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches)
+    || window.matchMedia && window.matchMedia("(display-mode: fullscreen)").matches
+    || navigator.standalone === true;
+}
+/** 是否运行在 APK 壳里（壳注入 window.PhoneConsole，且带 appVersion()） */
+function isInApp() {
+  try {
+    return !!(window.PhoneConsole && typeof window.PhoneConsole.appVersion === "function");
+  } catch (e) {
+    return false;
+  }
+}
+function toast(text, ms) {
+  let el = $("toast");
+  if (!el) { el = document.createElement("div"); el.id = "toast"; document.body.appendChild(el); }
+  el.textContent = text;
+  el.classList.add("show");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => el.classList.remove("show"), ms || 3200);
+}
+function updateFsBtn() {
+  const btn = $("fsBtn");
+  if (!btn) return;
+  // App 里没有浏览器地址栏可隐藏，而点"全屏"只会让系统状态栏消失、
+  // 留下一条页面盖不到的黑边（真机实测：screen 831 / WebView 792）。
+  // 所以 App 内直接不提供这个按钮和对应设置项，避免误触。
+  if (isInApp()) {
+    btn.style.display = "none";
+    document.body.classList.remove("fs");
+    // App 里没有地址栏可藏，整个「全屏显示」分区都不显示
+    const fsField = $("fsField");
+    if (fsField) fsField.style.display = "none";
+    return;
+  }
+  const on = !!fsEl();
+  document.body.classList.toggle("fs", on);   // 全屏专用布局（顶部留白/输入框高度）
+  syncAppHeight();
+  btn.classList.toggle("on", on || isStandalone());
+  btn.textContent = on ? "⤡" : "⛶";
+  btn.title = on ? "退出全屏" : "全屏（隐藏浏览器界面）";
+  // 已经是从桌面图标打开的无界面模式，且浏览器又不支持全屏 API（iPhone）→ 按钮没意义，隐藏
+  btn.style.display = (isStandalone() && !fsApi) ? "none" : "";
+  const t = $("fsToggle");
+  if (t) t.textContent = on ? "退出全屏" : (isStandalone() ? "已全屏显示" : "进入全屏");
+  const h = $("fsHint");
+  if (h) h.style.display = fsApi ? "none" : "";
+  const a = $("fsAutoBtn");
+  if (a) a.textContent = "打开时自动全屏：" + (fsAuto ? "开" : "关") + (fsApi ? "" : "（本机不支持）");
+}
+async function enterFullscreen(silent) {
+  if (fsEl()) return true;
+  if (!fsApi) {
+    if (!silent) {
+      toast(/iPhone|iPad|iPod/.test(navigator.userAgent)
+        ? "iPhone 浏览器不支持网页全屏。\n点底部「分享」→「添加到主屏幕」，\n以后从桌面图标打开就没有浏览器界面了。"
+        : "当前浏览器不支持网页全屏。\n请用浏览器菜单把本页「添加到主屏幕」，从图标打开即无浏览器界面。");
+    }
+    return false;
+  }
+  try {
+    if (document.documentElement.requestFullscreen) {
+      await document.documentElement.requestFullscreen({ navigationUI: "hide" });
+    } else {
+      document.documentElement.webkitRequestFullscreen();
+    }
+    return true;
+  } catch (e) {
+    if (!silent) toast("进入全屏失败：" + ((e && e.message) || "浏览器拒绝") + "\n可改用「添加到主屏幕」后从图标打开。");
+    return false;
+  }
+}
+async function exitFullscreen() {
+  try {
+    if (document.exitFullscreen) await document.exitFullscreen();
+    else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+  } catch (e) { /* 忽略 */ }
+}
+$("fsBtn").onclick = () => { fsEl() ? exitFullscreen() : enterFullscreen(false); };
+document.addEventListener("fullscreenchange", () => {
+  updateFsBtn();
+  syncFab();
+  setTimeout(() => { scrollBottom(true); syncFab(); }, 80);   // 视口高度变了，重新贴到底部
+});
+document.addEventListener("webkitfullscreenchange", () => { updateFsBtn(); syncFab(); setTimeout(() => scrollBottom(true), 80); });
+
+/* 「打开时自动全屏」：浏览器要求全屏必须由用户手势触发，
+   所以开启后在本次打开里等第一次点击/触摸时自动进入。 */
+function armAutoFullscreen() {
+  if (isInApp() || !fsAuto || !fsApi || fsEl()) return;   // App 内不自动全屏（只会多一条黑边）
+  const once = () => {
+    document.removeEventListener("touchend", once, true);
+    document.removeEventListener("click", once, true);
+    enterFullscreen(true);
+  };
+  document.addEventListener("touchend", once, true);
+  document.addEventListener("click", once, true);
+}
+
+/* ---------------- settings ---------------- */
+/* ---- 模型 / 思考强度：下拉式菜单，点开即选、选完立刻生效 ---- */
+const EFFORT_LABEL = { off: "关闭（最快）", minimal: "极低", low: "低", medium: "中", high: "高", max: "最高" };
+const EFFORT_DESC = {
+  off: "不思考，最快",
+  minimal: "几乎不思考",
+  low: "日常简单任务",
+  medium: "一般任务",
+  high: "默认，质量优先",
+  max: "最难的活，最慢",
+};
+let modelCatalog = null;
+let ddModel = null, ddEffort = null;      // 两个下拉组件
+
+function effortText(id) { return id ? (EFFORT_LABEL[id] || id) : "默认"; }
+
+/* 通用下拉：点按钮展开，点条目回调，点别处收起 */
+function makeDropdown(root, onPick) {
+  root.innerHTML =
+    '<button type="button" class="dd-btn"><span class="dd-label"></span><span class="dd-caret">▾</span></button>' +
+    '<div class="dd-menu"></div>';
+  const btn = root.querySelector(".dd-btn");
+  const menu = root.querySelector(".dd-menu");
+  const label = root.querySelector(".dd-label");
+  const api = {
+    root, menu, btn,
+    setLabel(text) { label.textContent = text; },
+    setOptions(list, currentValue) {
+      menu.innerHTML = "";
+      for (const opt of list) {
+        if (opt.head) {
+          const h = document.createElement("div");
+          h.className = "dd-head";
+          h.textContent = opt.head;
+          menu.appendChild(h);
+          continue;
+        }
+        const item = document.createElement("div");
+        item.className = "dd-item" + (opt.value === currentValue ? " on" : "");
+        item.innerHTML = '<span class="dd-name"></span>' +
+          (opt.sub ? '<span class="dd-sub"></span>' : "") +
+          '<span class="dd-tick">✓</span>';
+        item.querySelector(".dd-name").textContent = opt.label;
+        if (opt.sub) item.querySelector(".dd-sub").textContent = opt.sub;
+        item.onclick = (e) => {
+          e.stopPropagation();
+          api.close();
+          if (opt.value !== currentValue) onPick(opt);
+        };
+        menu.appendChild(item);
+      }
+    },
+    setDisabled(off) { btn.disabled = !!off; },
+    open() { api.closeAll(); root.classList.add("open"); },
+    close() { root.classList.remove("open"); },
+    toggle() { root.classList.contains("open") ? api.close() : api.open(); },
+    closeAll() { document.querySelectorAll(".dd.open").forEach((el) => el.classList.remove("open")); },
+  };
+  btn.onclick = (e) => { e.stopPropagation(); if (!btn.disabled) api.toggle(); };
+  root.addEventListener("click", (e) => e.stopPropagation());
+  return api;
+}
+document.addEventListener("click", () => document.querySelectorAll(".dd.open").forEach((el) => el.classList.remove("open")));
+
+function modelOptions(cat) {
+  const out = [];
+  let first = true;
+  for (const g of ((cat && cat.groups) || [])) {
+    if ((g.models || []).length > 1 || (((cat.groups || []).length) > 1)) {
+      out.push({ head: g.name || g.id });
+    }
+    for (const m of (g.models || [])) {
+      out.push({
+        value: g.id + "|" + m.id,
+        label: (m.name && m.name !== m.id) ? m.name : m.id,
+        sub: (m.name && m.name !== m.id) ? m.id : "",
+      });
+    }
+    first = false;
+  }
+  return out;
+}
+
+function effortOptions(provider, model) {
+  let efforts = [], def = null;
+  for (const g of ((modelCatalog && modelCatalog.groups) || [])) {
+    if (g.id !== provider) continue;
+    for (const m of (g.models || [])) {
+      if (m.id !== model) continue;
+      const r = m.reasoning || {};
+      efforts = r.efforts || [];
+      def = r.defaultEffort || null;
+    }
+  }
+  return {
+    def,
+    list: efforts.map((e) => ({
+      value: e.id,
+      label: effortText(e.id),
+      sub: (e.id === def ? "默认 · " : "") + (EFFORT_DESC[e.id] || e.description || ""),
+    })),
+  };
+}
+
+function renderEffortDd(provider, model, curEffort) {
+  const { def, list } = effortOptions(provider, model);
+  if (!list.length) {
+    ddEffort.setOptions([{ value: "", label: "该模型不支持调节思考强度" }], "");
+    ddEffort.setLabel("不可调");
+    ddEffort.setDisabled(true);
+    return;
+  }
+  const want = list.some((o) => o.value === curEffort) ? curEffort : (def || list[0].value);
+  ddEffort.setOptions(list, want);
+  ddEffort.setLabel(effortText(want));
+  ddEffort.setDisabled(false);
+  return want;
+}
+
+function currentDdModel() {
+  const raw = (ddModel && ddModel.root.dataset.value) || "";
+  const parts = raw.split("|");
+  return { provider: parts[0], model: parts[1] };
+}
+
+async function applyModelChange(provider, model, effort) {
+  if (!current || !current.id) { toast("先打开一段对话再切换模型"); return; }
+  const text = model + " · 思考强度 " + effortText(effort);
+  toast("正在切换…", 1200);
+  try {
+    const res = await api("/api/model", {
+      method: "POST",
+      body: JSON.stringify({ kind: current.kind, id: current.id, provider, model, reasoningEffort: effort || undefined }),
+    });
+    const s = res.selected || {};
+    const done = (s.model || model) + " · 思考强度 " + effortText(s.reasoningEffort || effort);
+    toast("已切换到 " + done, 2600);
+    $("setModel").textContent = done + "（" + (s.provider || provider) + "）";
+    if (current.kind === "thread") refreshThreads().catch(() => {});
+    else refreshDesktopSessions().catch(() => {});
+  } catch (e) {
+    toast("切换失败：" + (e.message || "未知原因"), 4200);
+  }
+}
+
+async function loadModels() {
+  const kind = (current && current.kind === "session") ? "session" : "thread";
+  const id = (current && current.id) ? current.id : "";
+  const res = await api("/api/models?kind=" + kind + "&id=" + encodeURIComponent(id)).catch(() => null);
+  modelCatalog = (res && res.catalog) || null;
+  const cur = (res && res.current) || {};
+  const canSwitch = !!(res && res.canSwitch);
+
+  ddModel.setOptions(modelOptions(modelCatalog), cur.provider + "|" + cur.model);
+  ddModel.root.dataset.value = cur.provider + "|" + cur.model;
+  ddModel.setLabel(cur.model ? (cur.model + "（" + (cur.provider || "") + "）") : "读不到模型清单");
+  ddModel.setDisabled(!canSwitch || !(modelOptions(modelCatalog).length));
+
+  const want = renderEffortDd(cur.provider, cur.model, cur.reasoningEffort);
+  ddEffort.root.dataset.provider = cur.provider;
+  ddEffort.root.dataset.model = cur.model;
+  ddEffort.root.dataset.effort = want || "";
+
+  let line = cur.model
+    ? (cur.model + " · 思考强度 " + effortText(cur.reasoningEffort || want) + "（" + (cur.provider || "") + "）")
+    : "未知（先打开一段对话）";
+  if (!canSwitch && current && current.id) line += "；这段对话暂时不能切换模型";
+  const fails = (modelCatalog && modelCatalog.failures) || [];
+  if (fails.length) line += "；有 provider 取不到模型：" + fails.map((f) => f.name || f.id).join("、");
+  $("setModel").textContent = line;
+}
+
+/* 组装两个下拉（只需一次） */
+ddModel = makeDropdown($("modelDd"), (opt) => {
+  const parts = String(opt.value).split("|");
+  const provider = parts[0], model = parts[1];
+  ddModel.root.dataset.value = opt.value;
+  ddModel.setLabel(model + "（" + provider + "）");
+  // 换模型后，思考强度切到该模型的默认档，然后一起提交
+  const want = renderEffortDd(provider, model, null);
+  ddEffort.root.dataset.provider = provider;
+  ddEffort.root.dataset.model = model;
+  ddEffort.root.dataset.effort = want || "";
+  applyModelChange(provider, model, want);
+});
+ddEffort = makeDropdown($("effortDd"), (opt) => {
+  const provider = ddEffort.root.dataset.provider || currentDdModel().provider;
+  const model = ddEffort.root.dataset.model || currentDdModel().model;
+  if (!provider || !model) { toast("先打开一段对话再切换"); return; }
+  ddEffort.root.dataset.effort = opt.value;
+  ddEffort.setLabel(effortText(opt.value));
+  applyModelChange(provider, model, opt.value);
+});
+
+$("settingsBtn").onclick = async () => {
+  $("settingsModal").classList.add("show");
+  $("setHost").textContent = location.origin + (PIN ? "?pin=" + PIN : "");
+  loadUsage();
+  updateFsBtn();
+  refreshAppBox();
+  loadModels();
+};
+
+/* ---- App 专属入口（原生顶栏已去掉，这些功能搬进设置） ---- */
+function refreshAppBox() {
+  const box = $("appBox");
+  if (!box) return;
+  if (!isInApp()) { box.style.display = "none"; return; }
+  box.style.display = "";
+  let v = "";
+  try { v = String(window.PhoneConsole.appVersion() || ""); } catch (e) { v = ""; }
+  const el = $("appVer");
+  if (el) el.textContent = v ? ("当前版本 " + v) : "";
+}
+function closeSettings() { $("settingsModal").classList.remove("show"); }
+$("appReconnect").onclick = () => {
+  closeSettings();
+  try { window.PhoneConsole.reload(); } catch (e) { location.reload(); }
+};
+$("appUpdate").onclick = () => {
+  closeSettings();
+  try { window.PhoneConsole.checkUpdate(); } catch (e) { toast("当前环境不支持检查更新"); }
+};
+$("appSetup").onclick = () => {
+  closeSettings();
+  try { window.PhoneConsole.toSettings(); } catch (e) { toast("当前环境不支持修改地址"); }
+};
+$("fsToggle").onclick = () => { fsEl() ? exitFullscreen() : enterFullscreen(false); };
+$("fsAutoBtn").onclick = () => {
+  if (!fsApi) {
+    toast("本机浏览器不支持网页全屏，请「添加到主屏幕」后从图标打开。");
+    return;
+  }
+  fsAuto = !fsAuto;
+  localStorage.setItem(FS_KEY, fsAuto ? "1" : "0");
+  updateFsBtn();
+  if (fsAuto) {
+    if (!fsEl()) armAutoFullscreen();   // 等下一次点击时进入
+    toast("已开启：本次打开后点一下屏幕即进入全屏");
+  } else {
+    toast("已关闭自动全屏");
+  }
+};
+$("copyHost").onclick = async () => {
+  const url = location.origin + (PIN ? "?pin=" + PIN : "");
+  try {
+    await navigator.clipboard.writeText(url);
+    $("copyHost").textContent = "已复制 ✓";
+    setTimeout(() => { $("copyHost").textContent = "复制地址"; }, 1500);
+  } catch (e) {
+    prompt("复制此地址：", url);
+  }
+};
+$("hostHint").onclick = () => {
+  const ua = navigator.userAgent;
+  let steps;
+  if (/iPhone|iPad|iPod/.test(ua)) {
+    steps = "iPhone/iPad：\n1. 点浏览器底部「分享」按钮\n2. 滚动选「添加到主屏幕」\n3. 点「添加」，屏幕上出现图标\n\n添加后，随时点图标即可进入（建议先复制地址存备忘录，双重保险）";
+  } else {
+    steps = "Android：\n1. 点浏览器右上角菜单（⋮ 或 ⋯）\n2. 选「添加到主屏幕 / 安装应用」\n3. 点「添加」，屏幕上出现图标\n\n添加后，随时点图标即可进入（建议先复制地址存备忘录，双重保险）";
+  }
+  alert(steps);
+};
+$("settingsClose").onclick = () => $("settingsModal").classList.remove("show");
+
+/* ---------------- 背景图与透明度 ---------------- */
+function applyBg() {
+  const url = localStorage.getItem("console_bg") || "";
+  const alpha = (parseInt(localStorage.getItem("console_bg_alpha") || "90", 10) / 100);
+  const el = document.body;
+  if (url) {
+    el.style.backgroundImage = "url(" + url + ")";
+    el.style.backgroundSize = "cover";
+    el.style.backgroundPosition = "center";
+    el.style.backgroundAttachment = "fixed";
+  } else {
+    el.style.backgroundImage = "";
+  }
+  // 微信风格浅色聊天区：极淡的一层同色蒙层（深浅由设置里的「聊天底色深浅」决定，
+  // 见 applyBaseTone）。以前是 30% 白色，压在自定义壁纸上会像糊了一层白纱。
+  $("chat").style.background = getComputedStyle(document.documentElement)
+    .getPropertyValue("--wx-ov8").trim() || "rgba(230,230,230,.08)";
+  document.documentElement.style.setProperty("--bubble-alpha", alpha.toFixed(2));
+  const av = $("bgAlphaVal");
+  if (av) av.textContent = Math.round(alpha * 100) + "%";
+}
+function saveBgToServer(patch) {
+  const body = {};
+  if (patch && patch.url !== undefined) body.url = patch.url;
+  if (patch && patch.alpha !== undefined) body.alpha = patch.alpha;
+  const doPost = () => api("/api/bg", { method: "POST", body: JSON.stringify(body) });
+  doPost().catch(() => { setTimeout(() => doPost().catch(() => {}), 2000); });
+}
+function currentAlpha() {
+  return parseInt(localStorage.getItem("console_bg_alpha") || "90", 10);
+}
+async function loadBgFromServer() {
+  try {
+    const bg = await api("/api/bg");
+    if (bg && typeof bg === "object") {
+      if (bg.url !== undefined && bg.url !== null && bg.url !== "") {
+        localStorage.setItem("console_bg", bg.url);
+      }
+      if (typeof bg.alpha === "number") {
+        localStorage.setItem("console_bg_alpha", String(bg.alpha));
+      }
+    }
+  } catch (e) {}
+  applyBg();
+}
+$("settingsX").onclick = () => $("settingsModal").classList.remove("show");
+var _v2 = $("openV2"); if (_v2) _v2.onclick = () => { location.href = "/app"; };
+$("bgPick").onclick = () => $("bgFile").click();
+function compressImage(file, maxDim, quality, cb) {
+  const img = new Image();
+  const url = URL.createObjectURL(file);
+  img.onload = () => {
+    let w = img.width, h = img.height;
+    const s = Math.min(1, maxDim / Math.max(w, h));
+    w = Math.max(1, Math.round(w * s));
+    h = Math.max(1, Math.round(h * s));
+    const cv = document.createElement("canvas");
+    cv.width = w; cv.height = h;
+    const ctx = cv.getContext("2d");
+    ctx.fillStyle = "#1A1D28"; ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(img, 0, 0, w, h);
+    URL.revokeObjectURL(url);
+    cb(cv.toDataURL("image/jpeg", quality));
+  };
+  img.onerror = () => { URL.revokeObjectURL(url); cb(null); };
+  img.src = url;
+}
+$("bgFile").onchange = (e) => {
+  const f = e.target.files && e.target.files[0];
+  if (!f) return;
+  compressImage(f, 1280, 0.85, (dataUrl) => {
+    if (dataUrl) {
+      localStorage.setItem("console_bg", dataUrl);
+      applyBg();
+      saveBgToServer({ url: dataUrl, alpha: currentAlpha() });
+    }
+  });
+  e.target.value = "";
+};
+$("bgClear").onclick = () => { localStorage.removeItem("console_bg"); applyBg(); saveBgToServer({ url: "", alpha: currentAlpha() }); };
+$("bgAlpha").oninput = (e) => {
+  localStorage.setItem("console_bg_alpha", e.target.value);
+  applyBg();
+};
+$("bgAlpha").onchange = (e) => {
+  localStorage.setItem("console_bg_alpha", e.target.value);
+  applyBg();
+  saveBgToServer({ alpha: parseInt(e.target.value, 10) });
+};
+
+/* ---------------- 聊天底色深浅（设置里可调，默认 10% 黑） ---------------- */
+function baseShade() {
+  const v = parseInt(localStorage.getItem("console_base_shade") || "10", 10);
+  return isNaN(v) ? 10 : Math.max(0, Math.min(30, v));
+}
+function applyBaseTone() {
+  const shade = baseShade();
+  // 深浅滑块在两种主题下都生效：浅色 = 由白往灰压，深色 = 由深往稍亮抬
+  const dark = resolvedTheme() === "dark";
+  const g = dark ? Math.round(20 + shade * 1.2) : Math.round(255 * (1 - shade / 100));
+  const rgb = g + "," + g + "," + g;
+  const hex = "#" + [g, g, g].map((x) => x.toString(16).padStart(2, "0")).join("");
+  const root = document.documentElement.style;
+  root.setProperty("--wx-base", hex);
+  root.setProperty("--wx-ov8", "rgba(" + rgb + ",.08)");
+  root.setProperty("--wx-ov90", "rgba(" + rgb + ",.90)");
+  root.setProperty("--wx-ov97", "rgba(" + rgb + ",.97)");
+  root.setProperty("--wx-ov98", "rgba(" + rgb + ",.98)");
+  const lab = $("baseShadeVal");
+  if (lab) lab.textContent = shade + "%";
+  const sl = $("baseShade");
+  if (sl && sl.value !== String(shade)) sl.value = String(shade);
+  // 聊天区那层是 applyBg() 写的 inline style，拖动滑块时要同步刷一次
+  const chat = $("chat");
+  if (chat) chat.style.background = "rgba(" + rgb + ",.08)";
+}
+$("baseShade").oninput = (e) => {
+  localStorage.setItem("console_base_shade", e.target.value);
+  applyBaseTone();
+};
+
+/* ---------------- 外观：浅色 / 深色 / 跟随系统 ---------------- */
+function themePref() {
+  return localStorage.getItem("console_theme") || "light";
+}
+function resolvedTheme() {
+  const p = themePref();
+  if (p === "auto") {
+    return (window.matchMedia
+            && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
+  }
+  return p === "dark" ? "dark" : "light";
+}
+function applyTheme() {
+  const t = resolvedTheme();
+  document.documentElement.setAttribute("data-theme", t);
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute("content", t === "dark" ? "#12141C" : "#E6E6E6");
+  // 在壳 APK 里：让原生顶栏/状态栏一起换色（网页端没有这个桥，忽略即可）
+  try {
+    if (window.PhoneConsole && window.PhoneConsole.setTheme) window.PhoneConsole.setTheme(t);
+  } catch (e) { /* 忽略 */ }
+  applyBaseTone();          // 底色/蒙层按主题重算
+  applyBg();                // 刷新聊天区那层 inline 背景
+  const btns = document.querySelectorAll("#themeSeg button");
+  for (let i = 0; i < btns.length; i++) {
+    btns[i].classList.toggle("on", btns[i].getAttribute("data-theme-opt") === themePref());
+  }
+}
+(function wireTheme() {
+  const btns = document.querySelectorAll("#themeSeg button");
+  for (let i = 0; i < btns.length; i++) {
+    btns[i].addEventListener("click", () => {
+      localStorage.setItem("console_theme", btns[i].getAttribute("data-theme-opt"));
+      applyTheme();
+    });
+  }
+  if (window.matchMedia) {   // 跟随系统时，系统切换要实时跟
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = () => { if (themePref() === "auto") applyTheme(); };
+    if (mq.addEventListener) mq.addEventListener("change", onChange);
+    else if (mq.addListener) mq.addListener(onChange);
+  }
+})();
+applyTheme();
+
+/* ---------------- usage ---------------- */
+function fmtNum(n) {
+  return String(n == null ? 0 : n).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+$("usageRefresh").onclick = loadUsage;
+
+async function loadUsage() {
+  $("setBalance").textContent = "加载中…";
+  $("setUsage").textContent = "加载中…";
+  const [bal, usage] = await Promise.all([
+    api("/api/balance").catch(() => null),
+    api("/api/usage").catch(() => null),
+  ]);
+  if (bal && bal.balance_infos && bal.balance_infos.length) {
+    const b = bal.balance_infos[0];
+    $("setBalance").textContent = "余额 " + b.total_balance + " " + b.currency;
+    // 余额不多就把充值按钮点亮，顺手提示一下
+    const amount = parseFloat(b.total_balance);
+    const low = !isNaN(amount) && amount < 10;
+    $("topUp").classList.toggle("low", low);
+    $("balHint").style.display = low ? "" : "none";
+  } else if (bal && bal.error) {
+    $("setBalance").textContent = "获取失败：" + bal.error;
+    $("balHint").style.display = "none";
+  } else {
+    $("setBalance").textContent = "暂无余额信息";
+    $("balHint").style.display = "none";
+  }
+  if (usage) {
+    const o = usage.official;
+    const t = usage.total;
+    let html = "";
+    if (o && o.hit !== undefined) {
+      const span = (o.days && o.days.length) ? ("（" + o.days[0] + " ~ " + o.days[o.days.length - 1] + "）") : "";
+      html += "<div style='font-weight:600;color:var(--accent);margin-bottom:2px;'>官网用量" + span + "</div>";
+      html += "<div>命中缓存 " + fmtNum(o.hit) + " · 未命中 " + fmtNum(o.miss) + "</div>";
+      html += "<div>输出 " + fmtNum(o.output) + " · 请求 " + fmtNum(o.requests) + " 次</div>";
+      html += "<div style='margin-top:3px;font-size:15px;font-weight:700;color:var(--accent);'>命中率 " + o.hit_rate + "%</div>";
+    } else {
+      html += "<div style='opacity:.8;'>暂无官网用量数据（请先在电脑端导入）</div>";
+    }
+    if (usage.per_thread && usage.per_thread.length) {
+      html += "<div style='margin-top:6px;opacity:.85;border-top:1px solid var(--border);padding-top:4px;'>本机运行会话：共 " +
+        fmtNum(t.turns) + " 轮</div>";
+      html += "<div style='opacity:.8;'>";
+      for (const p of usage.per_thread) {
+        html += "<div style='padding:3px 0;border-top:1px solid var(--border);'>" +
+          esc(p.name) + "：" + fmtNum(p.turns) + " 轮</div>";
+      }
+      html += "</div>";
+    }
+    $("setUsage").innerHTML = html;
+  } else {
+    $("setUsage").textContent = "暂无使用数据";
+  }
+}
+
+if (location.protocol === "https:" || ["127.0.0.1", "localhost"].includes(location.hostname)) {
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  }
+}
+
+/* ---------------- boot ---------------- */
+let pollMs = 5000;
+async function pollLoop() {
+  let ok = true;
+  try {
+    ok = await refreshThreads();
+    if (viewMode === "desktop") await refreshDesktopSessions();
+  } catch (e) { ok = false; }
+  if (!ok) pollMs = Math.min(30000, pollMs * 2); else pollMs = 5000;
+  setTimeout(pollLoop, pollMs);
+}
+async function init() {
+  updateFsBtn();
+  syncAppHeight();
+  armAutoFullscreen();
+  // 每一步都容错：任何一步失败也不能让界面半死不活（以前会连输入栏都不显示）
+  try { await loadBgFromServer(); } catch (e) { }
+  await openSomething(0);
+  pollLoop();
+}
+
+/* 选一个能聊的目标打开：优先手机任务，没有就退到最近一段电脑端对话。
+   都打不开时输入栏保留为禁用态，并在 2 秒后自动重试一次。 */
+async function openSomething(attempt) {
+  try { await refreshThreads(); } catch (e) { }
+  const info = await api("/api/info").catch(() => null);
+  if (info) {
+    phoneWorkspace = info.phone_workspace || "";
+    workdirRoot = info.workdir_root || "";
+  }
+  const first = Object.values(threads).find((t) => !t.legacy) || Object.values(threads)[0];
+  if (first) {
+    openConversation(first.id, "thread");
+    return true;
+  }
+  // 没有手机任务：退到最近一段电脑端对话，并把侧栏切到「电脑端对话」，列表与内容保持一致
+  try { await refreshDesktopSessions(); } catch (e) { }
+  if (desktopSessions.length) {
+    viewMode = "desktop";
+    $("tabConsole").classList.remove("active");
+    $("tabDesktop").classList.add("active");
+    $("threadList").style.display = "none";
+    $("desktopList").style.display = "";
+    openConversation(desktopSessions[0].id, "session");
+    return true;
+  }
+  openConversation(null, "thread");
+  if (attempt < 1) setTimeout(() => {                 // 可能是网络抖动，2 秒后再试一次
+    if (!current || !current.id) openSomething(attempt + 1);
+  }, 2000);
+  return false;
+}
+
+$("loginHost").textContent = location.host;
+(function () {
+  const m = location.search.match(/[?&]pin=([0-9]{8})/);
+  if (m) {
+    PIN = m[1];
+    localStorage.setItem("console_pin", PIN);
+    try { history.replaceState({}, "", location.pathname + location.hash); } catch (e) {}
+  }
+})();
+if (PIN) {
+  api("/api/info").then(() => { showApp(); init(); }).catch((e) => showLogin(
+    e && e.status === 401 ? "PIN 已变化，请重新输入" : "无法连接服务器：请确认电脑端控制台正在运行"
+  ));
+} else {
+  showLogin("");
+}
+
+/* ---------------- 全屏诊断（排查"全屏顶部黑边"用） ----------------
+   全屏状态下长按页脚的版本号，会弹出一屏实时数值；点一下关闭。
+   需要的信息：可视视口/布局视口/屏幕、全屏元素、html/body 背景、#app 与 header 的位置、
+   当前主题和 --wx-base，以及安全区 --sa-t。 */
+function showFsDiag() {
+  const old = document.getElementById("diagBox");
+  if (old) old.remove();
+  const vv = window.visualViewport || {};
+  const app = $("app"), hd = document.querySelector("header");
+  const rectStr = (el) => {
+    if (!el) return "-";
+    const b = el.getBoundingClientRect();
+    return "y=" + Math.round(b.y) + " h=" + Math.round(b.height) + " w=" + Math.round(b.width);
+  };
+  const bg = (el) => el ? getComputedStyle(el).backgroundColor : "-";
+  const rootStyle = getComputedStyle(document.documentElement);
+  let apkVer = "网页端（无壳）";
+  try {
+    if (window.PhoneConsole && window.PhoneConsole.appVersion) {
+      apkVer = String(window.PhoneConsole.appVersion());
+    }
+  } catch (e) {
+    apkVer = "读取失败";
+  }
+  const lines = [
+    "── 全屏诊断 ──",
+    "壳版本: " + apkVer,
+    "inner: " + window.innerWidth + " x " + window.innerHeight,
+    "visualViewport: " + Math.round(vv.width || 0) + " x " + Math.round(vv.height || 0)
+      + "  offsetTop=" + Math.round(vv.offsetTop || 0) + "  scale=" + (vv.scale || 1),
+    "screen: " + screen.width + " x " + screen.height + "  dpr=" + (window.devicePixelRatio || 0),
+    "全屏元素: " + (document.fullscreenElement ? document.fullscreenElement.tagName : "无"),
+    "html: " + bg(document.documentElement) + "  " + rectStr(document.documentElement),
+    "body: " + bg(document.body) + "  " + rectStr(document.body),
+    "#app: " + rectStr(app) + "  style.height=" + (app ? (app.style.height || "auto") : "-"),
+    "header: " + rectStr(hd),
+    "主题: " + document.documentElement.getAttribute("data-theme")
+      + "  --wx-base=" + String(rootStyle.getPropertyValue("--wx-base")).trim(),
+    "--sa-t=" + String(rootStyle.getPropertyValue("--sa-t")).trim()
+      + "  --sa-b=" + String(rootStyle.getPropertyValue("--sa-b")).trim(),
+    "body.fs: " + document.body.classList.contains("fs"),
+    "",
+    "（点空白处关闭）",
+  ];
+  const d = document.createElement("div");
+  d.id = "diagBox";
+  d.textContent = lines.join("\n");
+  d.onclick = () => d.remove();
+  document.body.appendChild(d);
+}
+(function bindFsDiag() {
+  const b = $("verBadge");
+  if (!b) return;
+  let timer = null;
+  const start = () => { timer = setTimeout(showFsDiag, 650); };
+  const cancel = () => { if (timer) { clearTimeout(timer); timer = null; } };
+  b.addEventListener("touchstart", start, { passive: true });
+  b.addEventListener("touchend", cancel);
+  b.addEventListener("touchmove", cancel);
+  b.addEventListener("mousedown", start);
+  b.addEventListener("mouseup", cancel);
+  b.addEventListener("mouseleave", cancel);
+})();
+
+</script>
+</body>
+</html>
