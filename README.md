@@ -44,18 +44,30 @@
 
 ## 界面预览
 
-<p align="center">
-  <img src="screenshots/01-登录.png" width="180" />
-  <img src="screenshots/02-聊天-浅色.png" width="180" />
-  <img src="screenshots/03-聊天-深色.png" width="180" />
-  <img src="screenshots/05-设置.png" width="180" />
-</p>
+### 电脑端面板
 
 <p align="center">
-  <img src="screenshots/04-会话侧栏.png" width="180" />
-  <img src="screenshots/06-聊天-新界面.png" width="180" />
-  <img src="screenshots/07-设置-新界面.png" width="180" />
+  <img src="screenshots/00-电脑端面板.png" width="820" alt="电脑端面板：服务状态 / 隧道地址 / 二维码 / 日志" />
 </p>
+
+<p align="center"><sub>电脑端面板：服务与隧道的运行状态、手机访问地址（含 PIN）、最近事件</sub></p>
+
+### 手机端
+
+<table align="center" width="100%">
+  <tr>
+    <td align="center"><img src="screenshots/01-登录.png" width="190" /><br /><sub>登录 · PIN</sub></td>
+    <td align="center"><img src="screenshots/04-会话侧栏.png" width="190" /><br /><sub>会话侧栏 · 归档 / 用量入口</sub></td>
+    <td align="center"><img src="screenshots/02-聊天-浅色.png" width="190" /><br /><sub>浅色聊天</sub></td>
+    <td align="center"><img src="screenshots/03-聊天-深色.png" width="190" /><br /><sub>深色聊天</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="screenshots/05-设置.png" width="190" /><br /><sub>设置 · 模型/强度弹窗入口</sub></td>
+    <td align="center"><img src="screenshots/06-模型弹窗.png" width="190" /><br /><sub>模型与思考强度</sub></td>
+    <td align="center"><img src="screenshots/07-用量与计费.png" width="190" /><br /><sub>余额 / 官方用量 / 近 7 天</sub></td>
+    <td align="center"><img src="screenshots/08-图标.png" width="120" /><br /><sub>应用图标</sub></td>
+  </tr>
+</table>
 
 ## 架构
 
