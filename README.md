@@ -202,10 +202,10 @@ powershell -File android-app/scripts/build-and-publish.ps1
 
 ## 安全说明
 
-- 所有接口需要 PIN；PIN 存在 `console_data/pin.txt`，**不要提交**
-- 隧道是临时公网地址，用完即关；不需要时停掉服务即可
-- **不要把 `console.keystore` 提交到仓库**（构建时用你自己的签名）
-- 本仓库已剔除运行数据、上传附件、密钥与二进制
+- 所有接口需要 PIN；PIN、会话数据与上传附件都只存在电脑本机 console_data/，不随仓库分发
+- 公网访问通过临时隧道，不用时 stop-all.bat 关闭；介意 PIN 出现在链接里可随时重置
+- 仓库本身不含签名密钥与运行数据，构建 APK 请使用你自己的 keystore
+  （签名方式见 [docs/BUILD.md](docs/BUILD.md)，权限与凭据边界见 [docs/SECURITY.md](docs/SECURITY.md)）
 
 ## 许可
 
