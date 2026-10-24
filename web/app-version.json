@@ -2,5 +2,5 @@
     "url":  "/phone-console.apk",
     "versionCode":  120,
     "versionName":  "3.2.0",
-    "notes":  "新图标（深色砖 + 薄荷绿 \u003e_，自适应图标）+ 适配 Android 13 主题图标；体积 ~870KB"
+    "notes":  "3.2.0 稳定版：计划/目标镜像、命令菜单、用量金额、面板布局"
 }
