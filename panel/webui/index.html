@@ -225,8 +225,17 @@
             <span class="stat-sub">tokens</span>
           </article>
 
+          <article class="tile stat">
+            <div class="stat-head"><span class="stat-ico"><svg viewBox="0 0 24 24"><path d="M12 2v20M17 6.5H9.8a3.4 3.4 0 0 0 0 6.8H14a3.4 3.4 0 0 1 0 6.8H6.5"/></svg></span><span class="eyebrow">消耗金额</span></div>
+            <b class="stat-num" id="uCostRange">—</b>
+            <span class="stat-sub" id="uCostAvg">区间日均 —</span>
+          </article>
+
           <article class="tile donut-tile">
-            <span class="eyebrow">用量构成</span>
+            <div class="tile-head">
+              <span class="eyebrow">用量构成</span>
+              <span class="mono muted" id="uDonutCost">—</span>
+            </div>
             <div class="donut-wrap"><div id="donut"></div></div>
             <div class="legend" id="donutLegend"></div>
           </article>
@@ -234,6 +243,8 @@
           <article class="tile trend-tile">
             <div class="tile-head">
               <span class="eyebrow">每日用量</span>
+              <span class="grow"></span>
+              <span class="mono muted" id="uTrendCost">—</span>
               <span class="mono muted" id="trendRange">—</span>
             </div>
             <div class="trend-wrap" id="trend"></div>
@@ -254,11 +265,13 @@
           <article class="tile wide usage-days">
             <div class="tile-head">
               <span class="eyebrow">最近 7 天明细</span>
+              <span class="grow"></span>
+              <span class="mono muted" id="uDetailCost">—</span>
               <span class="mono muted" id="uDetailRange"></span>
             </div>
             <div class="table-wrap">
               <table id="uTable">
-                <thead><tr><th>日期</th><th>命中缓存</th><th>未命中</th><th>输出</th><th>请求</th><th>合计</th></tr></thead>
+                <thead><tr><th>日期</th><th>命中缓存</th><th>未命中</th><th>输出</th><th>请求</th><th>合计</th><th>消耗</th></tr></thead>
                 <tbody></tbody>
               </table>
             </div>

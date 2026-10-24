@@ -845,6 +845,7 @@ def fetch_official_usage_api(token):
     months = [(now.tm_year, now.tm_mon)]
     months.append((now.tm_year - 1, 12) if now.tm_mon == 1 else (now.tm_year, now.tm_mon - 1))
     per_day = {}
+    cost_by_day = {}
     cost_total = 0.0
     cost_currency = "CNY"
     for year, month in months:
@@ -904,9 +905,14 @@ def fetch_official_usage_api(token):
                         with open(tmp, encoding="utf-8-sig", errors="replace", newline="") as fh:
                             for r in csv.DictReader(fh):
                                 try:
-                                    cost_total += float(r.get("cost") or 0)
+                                    amount = float(r.get("cost") or 0)
                                 except (TypeError, ValueError):
-                                    pass
+                                    amount = 0.0
+                                cost_total += amount
+                                day = (r.get("utc_date") or r.get("date")
+                                       or r.get("start_time") or r.get("day") or "")[:10]
+                                if len(day) == 10 and amount:
+                                    cost_by_day[day] = round(cost_by_day.get(day, 0.0) + amount, 6)
                                 if r.get("currency"):
                                     cost_currency = r["currency"]
         except Exception:
@@ -918,7 +924,8 @@ def fetch_official_usage_api(token):
             "output": sum(d["output"] for d in per_day.values()),
             "requests": sum(d["requests"] for d in per_day.values()),
             "days": sorted(per_day), "per_day": per_day, "source": "api",
-            "cost": round(cost_total, 2), "cost_currency": cost_currency}
+            "cost": round(cost_total, 2), "cost_currency": cost_currency,
+            "per_day_cost": cost_by_day}
 
 
 
@@ -946,14 +953,16 @@ def refresh_official_usage(max_age_sec=1800, force=False):
         return {"ok": False, "updated": False, "error": "请求失败：%s" % exc}
     if not data or not data.get("per_day"):
         return {"ok": False, "updated": False, "error": "官网接口没有返回数据"}
-    save_api_usage(data["per_day"])
+    save_api_usage(data["per_day"], data.get("per_day_cost"),
+                   data.get("cost"), data.get("cost_currency") or "CNY")
     return {"ok": True, "updated": True, "days": len(data["per_day"]),
             "last": data.get("days", [None])[-1], "cost": data.get("cost")}
 
 
-def save_api_usage(per_day):
+def save_api_usage(per_day, cost_per_day=None, cost_total=None, currency="CNY"):
     """把官网 API 拉取的 per_day 明细写成官方格式 CSV（api-latest.csv，覆盖写），
-    与手动导入文件一起按天 max 合并，不重复累计。"""
+    与手动导入文件一起按天 max 合并，不重复累计。
+    同时写 cost.json（总额 + 按天消耗），供面板「消耗金额」板块使用。"""
     d = official_usage_dir()
     d.mkdir(parents=True, exist_ok=True)
     dst = d / "api-latest.csv"
@@ -971,6 +980,14 @@ def save_api_usage(per_day):
                 w.writerow(["api", day + "T00:00:00+08:00", "", "",
                             "", "", type_map[k], "", dd[k]])
     tmp.replace(dst)
+    if cost_per_day is not None or cost_total is not None:
+        payload = {"cost": round(float(cost_total or 0), 2), "currency": currency or "CNY",
+                   "per_day": {k: round(float(v), 6) for k, v in (cost_per_day or {}).items()},
+                   "at": time.strftime("%Y-%m-%dT%H:%M:%S")}
+        try:
+            (d / "cost.json").write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+        except OSError:
+            pass
     return dst
 
 

@@ -14,6 +14,7 @@ function uFmtCompact(n) {
   return String(n);
 }
 function uFmtInt(n) { return (Number(n) || 0).toLocaleString('zh-CN'); }
+function uFmtMoney(n) { return '¥' + (Number(n) || 0).toFixed(2); }
 function uToast(text, kind) {
   if (window.UI && window.UI.toast) window.UI.toast(text, kind);
 }
@@ -66,6 +67,14 @@ function renderUsage(d) {
   uq('#uHit').textContent = uFmtCompact(t.hit);
   uq('#uMiss').textContent = uFmtCompact(t.miss);
   uq('#uOut').textContent = uFmtCompact(t.output);
+  /* 消耗金额：每个板块都显示 */
+  const costRange = Number(t.costRange || 0);
+  const costAvg = Number(t.costAvg || 0);
+  const costAll = Number(t.costAll || 0);
+  if (uq('#uCostRange')) uq('#uCostRange').textContent = uFmtMoney(costRange);
+  if (uq('#uCostAvg')) {
+    uq('#uCostAvg').textContent = '日均 ' + uFmtMoney(costAvg) + ' · 累计 ' + uFmtMoney(costAll);
+  }
 
   /* 环形图 */
   uq('#donut').innerHTML = donutHTML(t);
@@ -81,6 +90,12 @@ function renderUsage(d) {
 
   /* 趋势图（可拖动 + 悬停详情） */
   const series = d.series || [];
+  if (uq('#uDonutCost')) uq('#uDonutCost').textContent = '区间 ' + uFmtMoney(costRange);
+  if (uq('#uTrendCost')) uq('#uTrendCost').textContent = '区间 ' + uFmtMoney(costRange);
+  if (uq('#uDetailCost')) {
+    const c7 = series.slice(-7).reduce((a, r) => a + (Number(r.cost) || 0), 0);
+    uq('#uDetailCost').textContent = '近 7 天 ' + uFmtMoney(c7);
+  }
   renderTrend(series);
 
   /* 元信息 */
@@ -103,10 +118,11 @@ function renderUsage(d) {
     uq('#uDetailRange').textContent = rows.length ? (rows[rows.length - 1].d + ' ~ ' + rows[0].d) : '—';
     tbody.innerHTML = rows.length ? rows.map((r) => {
       const sum = (r.hit || 0) + (r.miss || 0) + (r.output || 0);
+      const money = (r.cost == null) ? '—' : uFmtMoney(r.cost);
       return '<tr><td>' + r.d + '</td><td>' + uFmtCompact(r.hit) + '</td><td>' +
         uFmtCompact(r.miss) + '</td><td>' + uFmtCompact(r.output) + '</td><td>' +
-        uFmtInt(r.requests) + '</td><td>' + uFmtCompact(sum) + '</td></tr>';
-    }).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--muted)">没有数据</td></tr>';
+        uFmtInt(r.requests) + '</td><td>' + uFmtCompact(sum) + '</td><td>' + money + '</td></tr>';
+    }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--muted)">没有数据</td></tr>';
   }
 
   /* 提示 */
@@ -118,7 +134,7 @@ function renderUsage(d) {
     hint.textContent = '下载目录里发现 ' + cands.length + ' 个官网用量文件：' +
       cands.map((c) => c.name + (c.imported ? '（已导入）' : '')).join('、');
   } else {
-    hint.textContent = '数据来源：' + src + '；命中率 = 命中 ÷（命中 + 未命中）。';
+    hint.textContent = '数据来源：' + src + '；命中率 = 命中 ÷（命中 + 未命中）；消耗金额取自官网 cost 导出（按 UTC 天，覆盖最近两个月）。';
   }
   if (d.futureDropped) {
     hint.textContent += '（已忽略 ' + d.futureDropped + ' 天未来日期，官网数据可能把账期尾日算进去了）';
@@ -252,7 +268,7 @@ function renderTrend(series) {
   box.innerHTML = svg + htmlY + htmlX +
     '<div class="trend-tip" hidden></div>' +
     '<div class="trend-hint">' +
-    (TREND.series.length > TREND.win ? '按住拖动平移' : '全部数据') + ' · 悬停看当天详情</div>';
+    'Ctrl+滚轮 缩放 · Alt+滚轮 平移 · 拖动/滚轮 平移 · 悬停看详情</div>';
 
   if (range) {
     range.textContent = view[0].d + ' ~ ' + view[m - 1].d + ' · ' +
@@ -316,7 +332,9 @@ function bindTrend(box) {
       '<div class="tt-row"><span>命中缓存</span><b class="mono">' + uFmtCompact(s.hit) + '</b></div>' +
       '<div class="tt-row"><span>未命中</span><b class="mono">' + uFmtCompact(s.miss) + '</b></div>' +
       '<div class="tt-row"><span>输出</span><b class="mono">' + uFmtCompact(s.output) + '</b></div>' +
-      '<div class="tt-row"><span>请求</span><b class="mono">' + uFmtInt(s.requests) + '</b></div>';
+      '<div class="tt-row"><span>请求</span><b class="mono">' + uFmtInt(s.requests) + '</b></div>' +
+      '<div class="tt-row"><span>消耗</span><b class="mono">' +
+      ((s.cost == null) ? '—' : uFmtMoney(s.cost)) + '</b></div>';
     var br = box.getBoundingClientRect();
     var bw = t.offsetWidth || 148, bh = t.offsetHeight || 126;
     var left = ev.clientX - br.left + 16;
@@ -360,11 +378,23 @@ function bindTrend(box) {
   box.addEventListener('pointercancel', endDrag);
   box.addEventListener('pointerleave', function () { if (!TREND.dragging) hide(); });
 
+  /* 滚轮：
+     - Ctrl + 滚轮 = 缩放显示区间（天数）
+     - Alt  + 滚轮 = 左右平移区间
+     - 普通滚轮   = 快速平移（保留旧手感） */
   box.addEventListener('wheel', function (ev) {
-    if (TREND.series.length <= TREND.win) return;
-    var dir = ev.deltaY > 0 ? 1 : -1;
     var n = TREND.series.length;
-    TREND.end = Math.min(n - 1, Math.max(TREND.win - 1, TREND.end + dir * 3));
+    if (!n) return;
+    if (ev.ctrlKey) {
+      var factor = ev.deltaY > 0 ? 1.25 : 0.8;
+      TREND.win = Math.round((TREND.win || n) * factor);
+      TREND.win = Math.max(2, Math.min(n, TREND.win));
+    } else {
+      var step = ev.altKey ? Math.max(1, Math.round((TREND.win || n) * 0.15))
+                           : Math.max(1, Math.round(n * 0.03));
+      var dir = ev.deltaY > 0 ? 1 : -1;
+      TREND.end = Math.min(n - 1, Math.max((TREND.win || 2) - 1, TREND.end + dir * step));
+    }
     renderTrend(TREND.series);
     hide();
     ev.preventDefault();

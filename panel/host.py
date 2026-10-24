@@ -208,6 +208,28 @@ def _token_state():
             'tail': (_TOK['token'][-6:] if _TOK['token'] else '')}
 
 
+_COSTDAY = {"v": None, "ts": 0.0}
+
+
+def _cost_per_day():
+    """cost.json 里的按天消耗 {date: 金额}，30 秒缓存。"""
+    now = time.time()
+    if _COSTDAY["v"] is not None and now - _COSTDAY["ts"] < 30:
+        return _COSTDAY["v"]
+    v = {}
+    try:
+        cj = json.loads((core.official_usage_dir() / "cost.json").read_text(encoding="utf-8"))
+        v = cj.get("per_day") or {}
+        if not isinstance(v, dict):
+            v = {}
+        v = {str(k)[:10]: float(x or 0) for k, x in v.items()}
+    except Exception:
+        v = {}
+    _COSTDAY["v"] = v
+    _COSTDAY["ts"] = now
+    return v
+
+
 def _cost():
     now = time.time()
     if _COST['v'] is not None and now - _COST['ts'] < 30:
@@ -280,12 +302,21 @@ def _usage_payload(rng='全部', cfrom='', cto=''):
     out = sel['output'] if sel else 0
     req = sel['requests'] if sel else 0
     rate = (hit / (hit + miss) * 100.0) if (hit + miss) else 0.0
+    cost_map = _cost_per_day()
+    cost_all = _cost()
     series = []
+    cost_range = 0.0
     if sel:
         for d in sel['days']:
             v = sel['per_day'][d]
+            c = cost_map.get(d)
+            if c:
+                cost_range += c
             series.append({'d': d, 'hit': v.get('hit', 0), 'miss': v.get('miss', 0),
-                           'output': v.get('output', 0), 'requests': v.get('requests', 0)})
+                           'output': v.get('output', 0), 'requests': v.get('requests', 0),
+                           'cost': c})
+    today = time.strftime('%Y-%m-%d')
+    sel_days = len(sel['days']) if sel else 0
     # 导入过的文件 + 待导入候选（下载目录里新的 amount-*.csv / zip）
     imported_list = []
     try:
@@ -313,7 +344,12 @@ def _usage_payload(rng='全部', cfrom='', cto=''):
                      'first': min(per_day) if per_day else '',
                      'last': max(per_day) if per_day else ''},
         'totals': {'hit': hit, 'miss': miss, 'output': out, 'requests': req,
-                   'tokens': hit + miss + out, 'rate': rate},
+                   'tokens': hit + miss + out, 'rate': rate,
+                   'days': sel_days,
+                   'costRange': round(cost_range, 2),
+                   'costAvg': round(cost_range / sel_days, 2) if sel_days else 0.0,
+                   'costAll': round(float(cost_all or 0), 2),
+                   'costToday': round(float(cost_map.get(today, 0) or 0), 2)},
         'series': series,
         'cost': _cost(),
         'tokenState': _token_state(),
