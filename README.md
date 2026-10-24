@@ -17,6 +17,16 @@
 
 ---
 
+## 🎬 演示视频（2 分 20 秒）
+
+[![产品介绍视频](screenshots/00-产品介绍视频封面.png)](https://github.com/wwu328763-netizen/deepseek-phone-console/releases/download/v3.2.2/phone-console-intro-1080p.mp4)
+
+手机与电脑双向接续的完整实操：连接 → 电脑端补一句 → 手机接着看 → 手机排队/改稿 → 发图片 → 用量页。
+
+- 视频（1080p / H.264）：[phone-console-intro-1080p.mp4](https://github.com/wwu328763-netizen/deepseek-phone-console/releases/download/v3.2.2/phone-console-intro-1080p.mp4)
+- 字幕：[phone-console-intro.srt](https://github.com/wwu328763-netizen/deepseek-phone-console/releases/download/v3.2.2/phone-console-intro.srt)
+- 封面：[phone-console-intro-cover.png](https://github.com/wwu328763-netizen/deepseek-phone-console/releases/download/v3.2.2/phone-console-intro-cover.png)
+
 ## ⚠️ 先确认你能用（重要）
 
 这不是一个独立产品，而是 **DSH 的遥控器**。开始之前请确认：
