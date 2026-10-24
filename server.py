@@ -18,7 +18,6 @@ Requires: Python 3.11+. No third-party packages (dsh_client.py is stdlib-only).
 """
 
 import argparse
-import base64
 import hmac
 import json
 import os
@@ -836,14 +835,11 @@ class Console:
     def _split_content(self, prompt, images=None, files=None, base_dir=None):
         """Build (text, image_parts) for session.prompt.
 
-        消息文本保持用户原话 + 一行附件清单：
+        消息文本保持用户原话 + 附件清单：
           * 图片/文件都存进 <workdir>/.uploads/，agent 用 READ_IMAGE / 读文件自己看；
-          * **默认不再把 GLM 视觉识别的整段文字拼进消息** —— 那会把用户的气泡撑成
-            一大段识别文字（真机反馈：只要图二那种干净短气泡）。
-            需要旧行为（把描述内联进消息）可设环境变量 CONSOLE_INLINE_VISION=1。
+          * 图片额外给一行 markdown 链接（电脑端聊天里直接显示图，手机端归一化时剥掉）。
         """
         text = prompt or ""
-        inline_vision = os.environ.get("CONSOLE_INLINE_VISION", "").strip().lower() in ("1", "true", "yes")
 
         base = Path(base_dir) if base_dir else self.workdir_root
 
@@ -877,69 +873,7 @@ class Console:
                 links.append("![图片](http://127.0.0.1:%d/api/raw?path=%s&pin=%s)" % (self.port, q, pin_val))
             text = text + "\n\n" + "\n".join(links) + "\n\n（图片：" + ", ".join(_rel(i) for i in images) + "，可用 READ_IMAGE 查看）"
 
-        image_parts = []
-        if inline_vision:
-            descs = []
-            for img in (images or []):
-                try:
-                    desc = self._glm_vision(img)
-                except Exception:
-                    desc = None
-                if desc:
-                    descs.append("【图片 %s】%s" % (os.path.basename(img), desc))
-            if descs:
-                text = text + "\n\n[手机上传的图片，已通过视觉模型识别为文字]\n" + "\n".join(descs)
-        return text, image_parts
-
-    def _glm_vision(self, img_path, prompt="请详细描述这张图片的内容。如果图片中有文字，请完整提取。"):
-        """调用 GLM-4V-Flash（智谱）把图片识别成文字，供纯文本主模型理解。失败返回 None。"""
-        key = self._glm_key()
-        if not key:
-            return None
-        try:
-            with open(img_path, "rb") as fh:
-                b64 = base64.b64encode(fh.read()).decode("ascii")
-        except OSError:
-            return None
-        ext = os.path.splitext(img_path)[1].lower()
-        mime = {
-            ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
-            ".webp": "image/webp", ".gif": "image/gif", ".bmp": "image/bmp",
-        }.get(ext, "image/png")
-        body = {
-            "model": "glm-4v-flash",
-            "messages": [{"role": "user", "content": [
-                {"type": "image_url", "image_url": {"url": "data:%s;base64,%s" % (mime, b64)}},
-                {"type": "text", "text": prompt},
-            ]}],
-        }
-        req = urllib.request.Request(
-            "https://open.bigmodel.cn/api/paas/v4/chat/completions",
-            data=json.dumps(body).encode("utf-8"), method="POST")
-        req.add_header("Authorization", "Bearer " + key)
-        req.add_header("Content-Type", "application/json")
-        try:
-            with urllib.request.urlopen(req, timeout=90) as resp:
-                r = json.loads(resp.read().decode("utf-8"))
-            return r["choices"][0]["message"]["content"]
-        except Exception:
-            return None
-
-    @staticmethod
-    def _glm_key():
-        """获取 GLM_API_KEY：优先环境变量，其次 Windows 用户注册表（子进程可能读不到 User 环境变量）。"""
-        k = os.environ.get("GLM_API_KEY")
-        if k:
-            return k
-        try:
-            import winreg
-            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment") as rk:
-                v, _ = winreg.QueryValueEx(rk, "GLM_API_KEY")
-                if v:
-                    return str(v)
-        except Exception:
-            pass
-        return None
+        return text, []
 
     def _dsh_prompt(self, state, prompt, images=None, files=None):
         """Send one prompt into the task's DSH session and stream events."""
