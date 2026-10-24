@@ -48,9 +48,7 @@
 
 ### 电脑端面板
 
-<p align="center">
-  <img src="screenshots/00-电脑端面板.png" width="820" alt="电脑端面板" />
-</p>
+> 截图待补（Codex 单独截图后补入）。
 
 ### 手机端
 
