@@ -1,6 +1,6 @@
 {
     "url":  "/phone-console.apk",
-    "versionCode":  121,
-    "versionName":  "3.2.1",
-    "notes":  "3.2.1：登录页新增「扫码登录 / 更换地址」；退出登录或连接失败时直接回到原生扫码页；错误页按钮改为「扫码连接 / 重新设置地址」。"
+    "versionCode":  122,
+    "versionName":  "3.2.2",
+    "notes":  "3.2.2：从后台回到 App 不再整页重载；回前台自动补数据并重挂实时连接。"
 }

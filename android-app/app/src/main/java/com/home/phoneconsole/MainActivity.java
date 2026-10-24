@@ -284,10 +284,26 @@ public class MainActivity extends Activity {
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
-        if (web != null) {
-            web.setVisibility(View.VISIBLE);
-            loadConsole();
+        if (web == null) return;
+        web.setVisibility(View.VISIBLE);
+        // 从桌面点图标 / 通知回来：如果还是同一个控制台地址，只恢复渲染，绝不重新加载
+        // （以前每次回前台都 loadConsole() → 整页重载 → 看起来像"重新连接"）
+        try {
+            String cur = web.getUrl();
+            String host = Prefs.getHost(this);
+            String pin = Prefs.getPin(this);
+            boolean same = cur != null && host != null && !host.isEmpty()
+                    && cur.contains(host)
+                    && (pin == null || pin.isEmpty() || cur.contains(pin));
+            if (same && errorView == null && !loadFailed) {
+                web.onResume();
+                web.resumeTimers();
+                web.invalidate();
+                return;
+            }
+        } catch (Throwable ignored) {
         }
+        loadConsole();
     }
 
     // ------------------------------------------------------------------

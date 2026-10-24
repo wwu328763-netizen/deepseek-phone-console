@@ -1684,6 +1684,37 @@ export function App() {
     }, 3000);
   }, []);
 
+  /* 从后台回前台：不重载页面，只补一次快照并重挂 SSE（后台里连接可能被系统掐断） */
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState !== 'visible') return;
+      const a = stateRef.current.active;
+      if (!a) return;
+      api.snapshot(a.kind, a.id).then((d) => {
+        if (!d) return;
+        set({
+          items: withEcho(d.items || []), running: !!d.running, status: d.status || '',
+          plan: (d as any).plan || null, team: (d as any).team || null,
+        });
+      }).catch(() => {});
+      try { stopStream.current?.(); } catch (e) { /* ignore */ }
+      stopStream.current = stream(a.kind, a.id, (ev) => {
+        if (ev.type === 'session.snapshot') {
+          set({ items: withEcho(ev.items || []), running: !!ev.session?.running, status: ev.session?.status || '' });
+        } else if (ev.type === 'session.item' || ev.type === 'session.item_update') {
+          const it = ev.item;
+          if (!it) return;
+          const items = state.items.slice();
+          const i = items.findIndex((x) => x.id === it.id);
+          if (i >= 0) items[i] = { ...items[i], ...it }; else items.push(it);
+          set({ items });
+        }
+      });
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, []);
+
   /* 发送 / 停止 / 新建 */
   /* 真正发出去（不做繁忙判断） */
   const sendNow = useCallback(async (text: string, images: string[], files: string[]) => {
