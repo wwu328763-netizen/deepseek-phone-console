@@ -206,3 +206,55 @@ Send 请求体与 threads 相同，忙时同样返回 `409`。
 - 忙时 `409` → 入队；队列在 `running` 由 true→false 时自动补发
 - 附件上传用 XHR（浏览器无法取上传进度之外的流式进度），超时 120s
 - SSE 断线重连：`/api/sessions/{id}/stream`，事件类型 `session.snapshot` / `session.item` / `session.item_update`
+
+
+---
+
+## 桌面面板桥（pywebview）
+
+面板网页通过 `window.pywebview.api.*` 调用 Python（`panel/host.py` 的 `Api` 类）：
+
+| 方法 | 说明 |
+| --- | --- |
+| `log` / `ui_log` | 追加面板日志 |
+| `start_all` / `stop_all` | 启动/停止 服务 + 隧道 |
+| `start_tunnel_only` / `restart_tunnel` | 只操作隧道 |
+| `snap` / `poll` | 当前状态快照 / 轮询 |
+| `qr_svg` | 手机访问地址的二维码 SVG |
+| `open_phone_page` / `copy_access_url` / `save_phone_address` | 地址相关操作 |
+| `open_data_dir` | 打开 console_data |
+| `usage(rng, from, to)` | 用量数据（区间） |
+| `usage_pull` / `usage_import` | 拉取官网 / 导入 CSV |
+| `usage_token_state` / `usage_set_token` / `usage_clear_token` | 平台 Token 管理 |
+| `usage_clipboard` / `open_topup` | 剪贴板导入 / 充值页 |
+
+## Android 壳桥（WebView JS）
+
+网页调用 `window.PhoneConsole.*`：
+
+| 方法 | 说明 |
+| --- | --- |
+| `pin()` | 读取保存的 PIN |
+| `toSettings()` | 打开原生扫码/改地址页 |
+| `logout()` | 清 PIN 并强制显示登录页 |
+| `reload()` | 重新加载控制台 |
+| `appVersion()` | 壳版本，如 `3.2.0 (120)` |
+| `checkUpdate()` | 检查 `/app-version.json` |
+| `setTheme('dark'\|'light')` | 状态栏/导航栏跟随网页主题 |
+| `showMenuBridge()` | 原生菜单（已基本弃用） |
+
+## 会话详情新增字段
+
+`GET /api/sessions/{id}`、`GET /api/threads/{id}` 额外返回：
+
+```json
+{
+  "plan": {
+    "todos": [{"content": "…", "status": "pending|in_progress|completed"}],
+    "goal": {"objective": "长期目标", "id": "goal-…", "revision": 1},
+    "active": false
+  }
+}
+```
+
+手机端在输入框上方渲染为可折叠的「计划 / 目标」条；`plan` 每 3 秒随快照刷新。
