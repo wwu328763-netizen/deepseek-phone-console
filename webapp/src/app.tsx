@@ -824,6 +824,41 @@ function CommandSheet(props: {
 /* ────────────────────────── 计划 / 目标（DSH 镜像） ────────────────────────── */
 const PLAN_OPEN_KEY = 'console_plan_open';
 
+
+function TeamBar({ team }: { team: any }) {
+  const [open, setOpen] = useState(false);
+  const members: any[] = (team && team.members) || [];
+  if (!members.length) return null;
+  const tasks: any[] = (team && team.tasks) || [];
+  const runningMembers = members.filter((m) => m.running);
+  const done = tasks.filter((t) => t.status === 'completed').length;
+  return (
+    <div class={'team-bar' + (open ? ' open' : '')}>
+      <button class="team-head" onClick={() => setOpen(!open)}>
+        <span class={'team-dot' + (runningMembers.length ? ' run' : '')} />
+        <span class="team-title">子代理</span>
+        <span class="team-count">
+          {runningMembers.length ? runningMembers.length + '/' + members.length + ' 运行中' : members.length + ' 个'}
+        </span>
+        <span class="team-cur">{runningMembers.length ? runningMembers[0].label : (done ? '任务 ' + done + '/' + tasks.length : '')}</span>
+        <span class="team-arrow">{open ? '▾' : '▸'}</span>
+      </button>
+      {open ? (
+        <div class="team-body">
+          {members.map((m) => (
+            <div class={'team-item' + (m.running ? ' run' : '')} key={m.id}>
+              <span class="team-dot" />
+              <span class="team-name">{m.label}</span>
+              <span class="team-state">{m.running ? '运行中' : '空闲'}</span>
+            </div>
+          ))}
+          {tasks.length ? <div class="team-tasks">任务完成 {done}/{tasks.length}</div> : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function PlanBar({ plan }: { plan: any }) {
   const [open, setOpen] = useState<boolean>(() => localStorage.getItem(PLAN_OPEN_KEY) !== '0');
   const todos: any[] = (plan && plan.todos) || [];
@@ -1055,6 +1090,11 @@ function Drawer(props: {
                   onClick={() => { props.onPick(tab, id, title); }}>
                   <span class={'row-dot' + (it.running ? ' run' : '')} />
                   <span class="row-title">{title}</span>
+                  {it.subagent_total ? (
+                    <span class={'row-sub' + (it.subagent_running ? ' run' : '')}>
+                      {it.subagent_running ? '子代理 ' + it.subagent_running + ' 运行中' : '子代理 ' + it.subagent_total}
+                    </span>
+                  ) : null}
                   <span class="row-time">{relativeTime(it.created_at || it.updated)}</span>
                 </button>
                 <button class="row-arch" title={showArch ? '取消归档' : '归档'}
@@ -1555,14 +1595,14 @@ export function App() {
   const open = useCallback(async (kind: 'thread' | 'session', id: string, title: string) => {
     stopStream.current?.();
     clearInterval(pollTimer.current);
-    set({ active: { kind, id, title }, items: [], running: false, status: '', busy: false, view: 'chat' });
+    set({ active: { kind, id, title }, items: [], running: false, status: '', busy: false, team: null, view: 'chat' });
     atBottomRef.current = true;
     setJumpVisible(false);
     setUnread(0);
     setDrawer(false);
     requestAnimationFrame(() => scrollToBottom(false));
     const snap = await api.snapshot(kind, id).catch(() => null);
-    if (snap) set({ items: withEcho(snap.items || []), running: !!snap.running, status: snap.status || '', plan: (snap as any).plan || null });
+    if (snap) set({ items: withEcho(snap.items || []), running: !!snap.running, status: snap.status || '', plan: (snap as any).plan || null, team: (snap as any).team || null });
     stopStream.current = stream(kind, id, (ev) => {
       if (ev.type === 'session.snapshot') {
         set({ items: withEcho(ev.items || []), running: !!ev.session?.running, status: ev.session?.status || '' });
@@ -1579,7 +1619,7 @@ export function App() {
     pollTimer.current = window.setInterval(async () => {
       const d = await api.snapshot(kind, id).catch(() => null);
       if (!d) return;
-      set({ running: !!d.running, status: d.status || '', items: withEcho(d.items || []), plan: (d as any).plan || null });
+      set({ running: !!d.running, status: d.status || '', items: withEcho(d.items || []), plan: (d as any).plan || null, team: (d as any).team || null });
     }, 3000);
   }, []);
 
@@ -1779,6 +1819,7 @@ export function App() {
           {unread > 0 ? '新消息 ' + unread : '回到底部'}
         </button>
       ) : null}
+      <TeamBar team={s.team} />
       <PlanBar plan={s.plan} />
       <Composer disabled={!s.active} running={s.running} onSend={send} onStop={stop} upload={upload}
         modelName={allModelInfos.find((m) => m.id === (models?.current?.model || ''))?.name

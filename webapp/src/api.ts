@@ -1,7 +1,7 @@
 /* 手机远程控制台 · API 客户端（TypeScript）
    契约与旧页面一致：头 X-Console-Pin、SSE /api/(threads|sessions)/{id}/stream */
-export interface Thread { id: string; name: string; workdir?: string; created_at?: string; running?: boolean }
-export interface Session { id: string; name?: string; cwd?: string; updated?: string; running?: boolean; source?: string }
+export interface Thread { id: string; name: string; workdir?: string; created_at?: string; running?: boolean; subagent_total?: number; subagent_running?: number }
+export interface Session { id: string; name?: string; cwd?: string; updated?: string; running?: boolean; source?: string; subagent_total?: number; subagent_running?: number }
 export interface Att { name: string; path: string; image?: boolean }
 export interface Item {
   id: string; kind: string; text?: string; output?: string; args?: string;

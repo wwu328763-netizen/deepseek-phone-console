@@ -1149,6 +1149,22 @@ class Console:
                                                  time.localtime(updated / 1000.0)) if updated else None,
                         "running": bool(s.get("running")),
                         "origin": s.get("origin")})
+        # 列表行也带子代理数量（会话目录里能一眼看到哪个会话有子代理在跑）
+        sub_total = {}
+        sub_running = {}
+        for s in items:
+            if str(s.get("origin")) != "subagent":
+                continue
+            par = s.get("parentSessionId") or s.get("parentId")
+            if not par:
+                continue
+            sub_total[par] = sub_total.get(par, 0) + 1
+            if s.get("running"):
+                sub_running[par] = sub_running.get(par, 0) + 1
+        for row in out:
+            key = row.get("dsh_session_id") or (row["id"] if row.get("source") == "desktop" else None)
+            row["subagent_total"] = sub_total.get(key, 0)
+            row["subagent_running"] = sub_running.get(key, 0)
         out.sort(key=lambda s: s.get("updated") or "", reverse=True)
         out = out[:60]
         # 顺带把每段对话当前的模型/思考强度带上（harness 的投影里就有，手机端直接显示）
@@ -1305,6 +1321,71 @@ class Console:
         tokens = (stats or {}).get("tokens")
         return {"session": stats, "money": self.money(tokens), "at": now_iso()}
 
+    def team_of(self, sid, rows=None):
+        """当前会话的子代理 / 子智能体状态（给手机端镜像）。
+
+        数据来源：DSH 会话投影的 subagentCatalog（名字） + agentTeam（成员/任务）
+        + 子会话自身的 running/updatedAt。
+        """
+        if not sid:
+            return None
+        try:
+            rows = rows if rows is not None else self.dsh.list_sessions(cache_seconds=2.0)
+        except Exception:
+            return None
+        parent = None
+        for row in rows:
+            if row.get("sessionId") == sid:
+                parent = row
+                break
+        if parent is None:
+            return None
+        vals = (parent.get("projections") or {}).get("values") or {}
+        catalog = {}
+        for c in (vals.get("subagentCatalog") or []):
+            if isinstance(c, dict) and c.get("id"):
+                catalog[str(c["id"])] = str(c.get("label") or "")
+        team = vals.get("agentTeam") or {}
+        team_members = {}
+        for m in (team.get("members") or []):
+            if isinstance(m, dict) and m.get("id"):
+                team_members[str(m["id"])] = m
+        children = [r for r in rows
+                    if str(r.get("origin")) == "subagent"
+                    and (r.get("parentSessionId") == sid or r.get("parentId") == sid)]
+        members = []
+        for ch in children:
+            cid = str(ch.get("sessionId") or "")
+            m = team_members.get(cid) or {}
+            cv = (ch.get("projections") or {}).get("values") or {}
+            title = str(cv.get("title") or "").strip()
+            if len(title) > 60:
+                title = title[:60] + "…"
+            updated = ch.get("updatedAt")
+            members.append({
+                "id": cid,
+                "name": str(m.get("name") or ""),
+                "label": catalog.get(cid) or title or "子代理",
+                "role": str(m.get("role") or "teammate"),
+                "phase": str(m.get("phase") or ""),
+                "running": bool(ch.get("running")),
+                "updated": int(updated) if updated else None,
+            })
+        members.sort(key=lambda x: (not x["running"], -(x.get("updated") or 0)))
+        tasks = []
+        for t in (team.get("tasks") or []):
+            if not isinstance(t, dict):
+                continue
+            tasks.append({"subject": str(t.get("subject") or "")[:40],
+                          "status": str(t.get("status") or ""),
+                          "owner": str(t.get("ownerName") or "")})
+        if not members and not tasks:
+            return None
+        return {"total": len(members),
+                "running": sum(1 for m in members if m["running"]),
+                "members": members[:12],
+                "tasks": tasks[:12]}
+
     def session_plan(self, sid):
         """DSH 的计划 / 待办 / 目标（电脑端输入框上方那块内容），供手机端镜像显示。"""
         if not sid:
@@ -1367,6 +1448,11 @@ class Console:
                 state.dsh_session_id if state is not None else sid)
         except Exception:
             detail["plan"] = None
+        try:
+            detail["team"] = self.team_of(
+                state.dsh_session_id if state is not None else sid)
+        except Exception:
+            detail["team"] = None
         return detail
 
     def continue_session(self, sid, prompt, images=None, files=None):
@@ -1820,6 +1906,10 @@ class Handler(BaseHTTPRequestHandler):
                     pub["plan"] = self.app.session_plan(state.dsh_session_id or state.id)
                 except Exception:
                     pub["plan"] = None
+                try:
+                    pub["team"] = self.app.team_of(state.dsh_session_id or state.id)
+                except Exception:
+                    pub["team"] = None
                 self._json(pub)
                 return
             action = parts[4]

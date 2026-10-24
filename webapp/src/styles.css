@@ -804,3 +804,27 @@ button { background: none; border: 0; cursor: pointer; }
 .queue-edit:active { background: rgba(127, 127, 127, .22); }
 .queue-chip .queue-go { width: 26px; height: 26px; }
 .queue-chip .queue-x { flex: none; padding: 0 4px; }
+
+
+/* ── 子代理运行状态条（输入框上方，计划条之上） ── */
+.team-bar { margin: 0 12px 4px; border-radius: 12px; background: var(--panel, rgba(20,22,28,.6));
+  border: 1px solid var(--line, rgba(255,255,255,.08)); overflow: hidden; }
+.team-head { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 12px;
+  background: transparent; border: 0; color: var(--muted, #9aa0ae); font-size: 12px; text-align: left; }
+.team-dot { width: 6px; height: 6px; border-radius: 50%; background: #6b7280; flex: 0 0 auto; }
+.team-dot.run { background: #3fdc95; box-shadow: 0 0 6px #3fdc95; }
+.team-title { color: var(--text, #e6e8ee); font-weight: 600; }
+.team-count { color: var(--muted, #9aa0ae); }
+.team-cur { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--muted, #9aa0ae); }
+.team-arrow { color: var(--muted, #9aa0ae); }
+.team-body { border-top: 1px solid var(--line, rgba(255,255,255,.08)); padding: 6px 12px 10px; }
+.team-item { display: flex; align-items: center; gap: 8px; padding: 5px 0; font-size: 12px; color: var(--text, #e6e8ee); }
+.team-item .team-name { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.team-state { color: var(--muted, #9aa0ae); font-size: 11px; }
+.team-item.run .team-state { color: #3fdc95; }
+.team-tasks { margin-top: 6px; color: var(--muted, #9aa0ae); font-size: 11px; }
+
+/* 会话目录里的子代理角标 */
+.row-sub { margin-left: 6px; padding: 1px 6px; border-radius: 8px; font-size: 10px;
+  background: rgba(255,255,255,.06); color: var(--muted, #9aa0ae); flex: 0 0 auto; }
+.row-sub.run { color: #3fdc95; background: rgba(63,220,149,.12); }

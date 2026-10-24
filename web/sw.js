@@ -1,5 +1,5 @@
 /* Phone console service worker: caches the app shell, never API responses. */
-const CACHE = "phone-console-v71";
+const CACHE = "phone-console-v72";
 const SHELL = [
   "/",
   "/legacy",
