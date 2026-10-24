@@ -1132,6 +1132,9 @@ class Console:
                 continue
             if s.get("blank"):
                 continue
+            # 子代理 / 子智能体会话不进手机端会话目录（它们没有独立入口，只会淹没主会话）
+            if s.get("origin") == "subagent" or s.get("parentSessionId") or s.get("parentId"):
+                continue
             if sid in archived:      # 电脑端已归档的会话不在手机端显示
                 continue
             proj = s.get("projections") or {}
