@@ -5,6 +5,13 @@
 > 定位：**DSH（DeepSeek Harness）的手机遥控器**；作者用 AI 学习过程中做出的第一个 AI 产品
 > 说明：发布需要你的账号登录，我无法代发；到点会提醒你。
 
+> **链接怎么放（防和谐）**：公开文案里统一用加了「删」字的版本，并在评论区/简介里说明
+> 「把三个『删』字去掉就是链接」。真实链接只留在本文档里，不要直接发出去。
+> 真实链接：github.com/wwu328763-netizen/deepseek-phone-console
+> 伪装链接：gith删ub.c删om/wwu328763-netizen/deepseek删-phone-console
+
+
+
 ---
 
 ## 一、核心叙事（两平台共用）
@@ -41,7 +48,7 @@
 所以发出来，想听听真实的使用反馈，轻点拍。
 
 需要电脑上先跑 DSH；Windows + 安卓/手机浏览器。
-开源免费，代码在评论区。AI 在电脑跑，人在外面接着干。
+开源免费，代码在评论区（把「删」字去掉就是链接）。AI 在电脑跑，人在外面接着干。
 ```
 
 **话题标签（挑 5–8 个）**
@@ -51,7 +58,7 @@
 **置顶评论**
 
 ```
-开源：github.com/wwu328763-netizen/deepseek-phone-console
+开源：gith删ub.c删om/wwu328763-netizen/deepseek删-phone-console（把三个「删」字去掉就是链接）
 前提：电脑上要跑 DSH（DeepSeek Harness），它是 DSH 的遥控器，不是独立 AI。
 第一个 AI 产品，bug 请直接甩评论区，我会一条条看。
 ```
@@ -89,7 +96,7 @@ Windows 面板 + 手机网页 / Android App，局域网直连，可不用公网�
 01:50 DSH 用量与计费
 02:05 结尾
 
-仓库：github.com/wwu328763-netizen/deepseek-phone-console
+仓库：gith删ub.c删om/wwu328763-netizen/deepseek删-phone-console（复制后把三个「删」字去掉）
 前提：Windows 10/11 + DSH（DeepSeek Harness）
 软件：MIT 开源；视频/字幕在 Release v3.2.2 页面
 
@@ -104,6 +111,7 @@ Windows 面板 + 手机网页 / Android App，局域网直连，可不用公网�
 
 ```
 补一句前提：电脑上要先跑 DSH（DeepSeek Harness），这是它的手机遥控器，不是独立 AI。
+仓库：gith删ub.c删om/wwu328763-netizen/deepseek删-phone-console（把「删」字去掉即可打开）
 第一个 AI 产品，奇怪的 bug 应该不少，发现一个我修一个，感谢轻拍。
 ```
 
