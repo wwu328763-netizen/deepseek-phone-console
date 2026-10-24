@@ -825,7 +825,7 @@ function CommandSheet(props: {
 const PLAN_OPEN_KEY = 'console_plan_open';
 
 
-function TeamBar({ team }: { team: any }) {
+function TeamBar({ team, onOpen }: { team: any; onOpen?: (id: string) => void }) {
   const [open, setOpen] = useState(false);
   const members: any[] = (team && team.members) || [];
   if (!members.length) return null;
@@ -846,17 +846,77 @@ function TeamBar({ team }: { team: any }) {
       {open ? (
         <div class="team-body">
           {members.map((m) => (
-            <div class={'team-item' + (m.running ? ' run' : '')} key={m.id}>
+            <button class={'team-item' + (m.running ? ' run' : '')} key={m.id}
+              onClick={() => { if (onOpen) onOpen(m.id); }}>
               <span class="team-dot" />
               <span class="team-name">{m.label}</span>
-              <span class="team-state">{m.running ? '运行中' : '空闲'}</span>
-            </div>
+              <span class="team-state">{m.running ? '运行中' : '空闲'} ›</span>
+            </button>
           ))}
           {tasks.length ? <div class="team-tasks">任务完成 {done}/{tasks.length}</div> : null}
         </div>
       ) : null}
     </div>
   );
+}
+
+
+function SubagentSheet({ id, onClose }: { id: string | null; onClose: () => void }) {
+  const [data, setData] = useState<any>(null);
+  const [err, setErr] = useState('');
+  useEffect(() => {
+    if (!id) return;
+    let alive = true;
+    setData(null); setErr('');
+    api.subagent(id).then((d) => { if (alive) setData(d); })
+      .catch((e) => { if (alive) setErr((e && e.message) || '加载失败'); });
+    return () => { alive = false; };
+  }, [id]);
+  if (!id) return null;
+  const turns: any[] = (data && data.turns) || [];
+  return (
+    <div class="sub-mask" onClick={onClose}>
+      <div class="sub-panel" onClick={(e) => e.stopPropagation()}>
+        <div class="sub-head">
+          <div>
+            <b>{(data && data.label) || '子代理会话'}</b>
+            <span class={'sub-chip' + (data && data.running ? ' run' : '')}>
+              {data && data.running ? '运行中' : '已结束'}
+            </span>
+          </div>
+          <button class="ghost-btn" onClick={onClose} aria-label="关闭">✕</button>
+        </div>
+        <div class="sub-note">只读 · 子代理的对话不参与手机端发送</div>
+        {err ? <div class="sub-err">{err}</div> : null}
+        {data ? (
+          <div class="sub-meta">
+            <span>轮次 {data.stats ? data.stats.turns : 0}</span>
+            <span>步骤 {data.stats ? data.stats.steps : 0}</span>
+            <span>输出 {fmtTokens(data.tokens ? data.tokens.output : 0)}</span>
+            <span>缓存读 {fmtTokens(data.tokens ? data.tokens.cacheRead : 0)}</span>
+          </div>
+        ) : null}
+        <div class="sub-body">
+          {turns.map((t, i) => (
+            <div class="sub-turn" key={i}>
+              <div class="sub-turn-q">{t.prompt || ''}</div>
+              <div class="sub-turn-a">{t.response || '（无回复）'}</div>
+            </div>
+          ))}
+          {data && !turns.length ? <div class="sub-empty">这个子代理还没有输出</div> : null}
+          {!data && !err ? <div class="sub-empty">加载中…</div> : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function fmtTokens(n: number): string {
+  if (!n) return '0';
+  if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B';
+  if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+  return String(n);
 }
 
 function PlanBar({ plan }: { plan: any }) {
@@ -1496,6 +1556,7 @@ function ModelSheet(props: {
 
 /* ────────────────────────── 主应用 ────────────────────────── */
 export function App() {
+  const [subOpen, setSubOpen] = useState<string | null>(null);
   const s = useStore();
   const [drawer, setDrawer] = useState(false);
   const [settings, setSettings] = useState(false);
@@ -1819,7 +1880,7 @@ export function App() {
           {unread > 0 ? '新消息 ' + unread : '回到底部'}
         </button>
       ) : null}
-      <TeamBar team={s.team} />
+      <TeamBar team={s.team} onOpen={setSubOpen} />
       <PlanBar plan={s.plan} />
       <Composer disabled={!s.active} running={s.running} onSend={send} onStop={stop} upload={upload}
         modelName={allModelInfos.find((m) => m.id === (models?.current?.model || ''))?.name
@@ -1850,6 +1911,7 @@ export function App() {
         onApply={applyModelChoice} busy={modelBusy} />
       <NewThread open={newOpen} onClose={() => setNewOpen(false)} onCreate={createThread} />
       {viewer ? <ImageViewer path={viewer.path} name={viewer.name} onClose={() => setViewer(null)} /> : null}
+      <SubagentSheet id={subOpen} onClose={() => setSubOpen(null)} />
       {s.toast ? <div class={'toast ' + s.toast.kind}>{s.toast.text}</div> : null}
     </div>
   );

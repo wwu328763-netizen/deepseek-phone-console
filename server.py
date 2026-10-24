@@ -1386,6 +1386,66 @@ class Console:
                 "members": members[:12],
                 "tasks": tasks[:12]}
 
+    def subagent_view(self, sid):
+        """子代理会话的只读内容。
+
+        DSH 对子会话的 session/page 要求「durable parent address」，手机端拿不到；
+        但 session/list 的投影里已经有 turnOutline（每轮的 prompt / 回复摘要）、
+        用量、耗时、状态。用它拼一份只读记录足够看明白子代理做了什么。
+        """
+        if not sid:
+            return None
+        try:
+            rows = self.dsh.list_sessions(cache_seconds=2.0)
+        except Exception:
+            return None
+        item = None
+        for row in rows:
+            if row.get("sessionId") == sid:
+                item = row
+                break
+        if item is None or str(item.get("origin")) != "subagent":
+            return None
+        vals = (item.get("projections") or {}).get("values") or {}
+        sub = vals.get("subagent") or {}
+        stats = vals.get("sessionStats") or {}
+        usage = vals.get("tokenUsage") or {}
+        turns = []
+        for t in (vals.get("turnOutline") or []):
+            if not isinstance(t, dict):
+                continue
+            turns.append({
+                "turn": t.get("turn"),
+                "seq": t.get("seq"),
+                "prompt": str(t.get("prompt") or ""),
+                "response": str(t.get("response") or ""),
+            })
+        parent = item.get("parentSessionId") or item.get("parentId")
+        return {
+            "id": sid,
+            "readonly": True,
+            "kind": "subagent",
+            "label": str(sub.get("label") or vals.get("title") or "子代理"),
+            "mode": sub.get("mode"),
+            "running": bool(item.get("running")),
+            "parentSessionId": parent,
+            "updated": int(item.get("updatedAt") or 0) or None,
+            "cwd": item.get("cwd"),
+            "stats": {
+                "turns": int(stats.get("turns") or 0),
+                "steps": int(stats.get("steps") or 0),
+                "llmMs": int(stats.get("llmMs") or 0),
+                "toolMs": int(stats.get("toolMs") or 0),
+            },
+            "tokens": {
+                "uncachedInput": int(usage.get("uncachedInputTokens") or 0),
+                "cacheRead": int(usage.get("cacheReadTokens") or 0),
+                "output": int(usage.get("outputTokens") or 0),
+            },
+            "timing": vals.get("subagentTiming") or {},
+            "turns": turns,
+        }
+
     def session_plan(self, sid):
         """DSH 的计划 / 待办 / 目标（电脑端输入框上方那块内容），供手机端镜像显示。"""
         if not sid:
@@ -1852,6 +1912,14 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/api/archived":
             self._json(self.app.local_archived())
+            return
+
+        if path.startswith("/api/subagents/"):
+            sub = self.app.subagent_view(path[len("/api/subagents/"):])
+            if sub is None:
+                self._json({"error": "not a subagent session"}, 404)
+                return
+            self._json(sub)
             return
 
         if path == "/api/sessions":

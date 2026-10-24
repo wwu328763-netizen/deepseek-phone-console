@@ -41,6 +41,7 @@ export async function json<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  subagent: (id: string) => json<any>('/api/subagents/' + encodeURIComponent(id)),
   login: (pin: string) => json<{ ok: boolean }>('/api/login', { method: 'POST', body: JSON.stringify({ pin }) }),
   info: () => json<any>('/api/info'),
   threads: () => json<{ threads: Thread[] }>('/api/threads'),
