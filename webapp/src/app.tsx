@@ -720,20 +720,24 @@ function CommandSheet(props: {
           <span class="cmd-name">文件<em>file</em></span>
           <span class="cmd-desc">上传图片或文档</span>
         </button>
-        {hasTodos ? (
-          <button class="cmd-row" onClick={() => todo('plan', () => window.dispatchEvent(new CustomEvent('plan:toggle', { detail: true })))}>
-            <span class="cmd-ico"><Icon name="list" size={15} /></span>
-            <span class="cmd-name">计划<em>plan</em></span>
-            <span class="cmd-desc">查看当前计划进度</span>
-          </button>
-        ) : null}
-        {hasGoal ? (
-          <button class="cmd-row" onClick={() => todo('goal', () => window.dispatchEvent(new CustomEvent('plan:toggle', { detail: true })))}>
-            <span class="cmd-ico"><Icon name="target" size={15} /></span>
-            <span class="cmd-name">目标<em>goal</em></span>
-            <span class="cmd-desc">查看长期任务目标</span>
-          </button>
-        ) : null}
+        <button class="cmd-row" onClick={() => {
+          if (!hasTodos) { toast('当前会话还没有计划；DSH 生成计划后会自动出现在输入框上方', 'err'); return; }
+          window.dispatchEvent(new CustomEvent('plan:toggle', { detail: true }));
+          props.onClose();
+        }}>
+          <span class="cmd-ico"><Icon name="list" size={15} /></span>
+          <span class="cmd-name">计划<em>plan</em></span>
+          <span class="cmd-desc">{hasTodos ? '查看当前计划进度' : '本会话暂无计划'}</span>
+        </button>
+        <button class="cmd-row" onClick={() => {
+          if (!hasGoal) { toast('当前会话没有目标；长期目标需在电脑端 DSH 里设置', 'err'); return; }
+          window.dispatchEvent(new CustomEvent('plan:toggle', { detail: true }));
+          props.onClose();
+        }}>
+          <span class="cmd-ico"><Icon name="target" size={15} /></span>
+          <span class="cmd-name">目标<em>goal</em></span>
+          <span class="cmd-desc">{hasGoal ? '查看长期任务目标' : '本会话未设置目标'}</span>
+        </button>
         <div class="cmd-group">指令</div>
         <button class="cmd-row" onClick={() => todo('model', props.onModel)}>
           <span class="cmd-ico"><Icon name="gear" size={15} /></span>
@@ -797,7 +801,7 @@ function PlanBar({ plan }: { plan: any }) {
         <Icon name="list" size={14} />
         <span class="plan-title">{goal && goal.objective ? '目标' : '计划'}</span>
         <span class="plan-progress">{todos.length ? done + '/' + todos.length : ''}</span>
-        <span class="plan-cur">{cur ? cur.content : (todos.length && done === todos.length ? '全部完成' : '')}</span>
+        <span class="plan-cur">{goal && goal.objective ? goal.objective : (cur ? cur.content : (todos.length && done === todos.length ? '全部完成' : ''))}</span>
         <span class="plan-arrow">{open ? '▾' : '▸'}</span>
       </button>
       {open ? (

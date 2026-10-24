@@ -42,7 +42,7 @@ async function main() {
       if (s.source !== 'desktop') continue;
       try {
         const d = await (await fetch('/api/sessions/' + s.id, { headers: H })).json();
-        if (d.plan && ((d.plan.todos || []).length || (d.plan.goal && d.plan.goal.objective))) {
+        if (d.plan && d.plan.goal && d.plan.goal.objective) {
           return { id: s.id, name: s.name, todos: (d.plan.todos || []).length, goal: !!(d.plan.goal && d.plan.goal.objective) };
         }
       } catch (e) {}
@@ -67,7 +67,7 @@ async function main() {
     await sleep(4500);
     console.log('  plan-bar present:', await ev(`!!document.querySelector('.plan-bar')`));
     console.log('  plan text:', await ev(`document.querySelector('.plan-bar .plan-cur')?.textContent || ''`));
-    await shot('screenshots/手机端-计划条.png');
+    await shot('screenshots/手机端-目标.png');
     await ev(`document.querySelector('.slash-glyph')?.closest('button')?.click()`);
     await sleep(900);
     console.log('  cmd rows:', await ev(`document.querySelectorAll('.cmd-row').length`));
