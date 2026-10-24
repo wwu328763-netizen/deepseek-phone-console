@@ -449,7 +449,7 @@ public class MainActivity extends Activity {
                 + "2. 手机和电脑是否连在同一个 Wi-Fi<br>"
                 + "3. 地址/端口是否正确（默认 8787），电脑防火墙是否放行</p>"
                 + "<button onclick=\"PhoneConsole.reload()\">重试</button>"
-                + "<button class=\"sec\" onclick=\"PhoneConsole.toSettings()\">重新设置地址</button>"
+                + "<button class=\"sec\" onclick=\"PhoneConsole.toSettings()\">扫码连接 / 重新设置地址</button>"
                 + "<button class=\"sec\" onclick=\"PhoneConsole.logout()\">返回登录界面</button>"
                 + "</body></html>";
 
@@ -510,7 +510,8 @@ public class MainActivity extends Activity {
                         Prefs.setRequireLogin(MainActivity.this, true);
                     } catch (Throwable ignored) {
                     }
-                    loadConsole();
+                    // APK：退出后回到原生「扫码 / 设置」页，而不是只给一个 PIN 输入框
+                    startActivity(new Intent(MainActivity.this, SetupActivity.class));
                 }
             });
         }

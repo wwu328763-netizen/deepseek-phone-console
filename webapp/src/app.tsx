@@ -276,6 +276,12 @@ function Login({ onSubmit }: { onSubmit: (pin: string) => Promise<void> }) {
           {busy ? '连接中…' : '连接'}
         </button>
         <p class="login-hint">PIN 在电脑端管理面板 / 二维码里（链接自带 PIN 可直接进入）</p>
+        {typeof (window as any).PhoneConsole !== 'undefined' &&
+          typeof (window as any).PhoneConsole.toSettings === 'function' ? (
+          <button class="outline-btn" type="button" onClick={() => {
+            try { (window as any).PhoneConsole.toSettings(); } catch (e) {}
+          }}>扫码登录 / 更换地址</button>
+        ) : null}
       </form>
       <a class="login-legacy" href="/legacy">打开旧版界面 →</a>
     </div>

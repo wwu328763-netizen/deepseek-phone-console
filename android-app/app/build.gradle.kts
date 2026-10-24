@@ -6,29 +6,18 @@ plugins {
 }
 
 // ---------------------------------------------------------------------------
-// 签名：**仓库不包含密钥**。请自行生成 keystore，并用环境变量提供：
-//   CONSOLE_KEYSTORE         keystore 路径（默认 ../android/console.keystore）
-//   CONSOLE_STORE_PASSWORD   仓库密码
-//   CONSOLE_KEY_ALIAS        别名（默认 phoneconsole）
-//   CONSOLE_KEY_PASSWORD     密钥密码（默认同仓库密码）
-// 没提供 keystore 时自动跳过签名（产出 unsigned APK，仅供本地调试）。
+// 签名：固定复用旧壳的 console.keystore（别名 qqmeow）。
+// 绝对不能 keytool 重新生成 —— 新包必须能用旧的证书覆盖安装。
+// 密码可在命令行用 -P 覆盖，默认值与原 build.ps1 一致。
 // ---------------------------------------------------------------------------
-val keystoreFile: File = rootProject.file(
-    System.getenv("CONSOLE_KEYSTORE")
-        ?: (project.findProperty("CONSOLE_KEYSTORE") as String?)
-        ?: "../android/console.keystore"
-)
-val hasKeystore: Boolean = keystoreFile.exists()
-val ksAlias: String = System.getenv("CONSOLE_KEY_ALIAS")
-    ?: (project.findProperty("CONSOLE_KEY_ALIAS") as String?) ?: "phoneconsole"
-val ksStorePass: String = System.getenv("CONSOLE_STORE_PASSWORD")
-    ?: (project.findProperty("CONSOLE_STORE_PASSWORD") as String?) ?: ""
-val ksKeyPass: String = System.getenv("CONSOLE_KEY_PASSWORD")
-    ?: (project.findProperty("CONSOLE_KEY_PASSWORD") as String?) ?: ksStorePass
+val keystoreFile: File = rootProject.file("../android/console.keystore")
+val ksAlias: String = (project.findProperty("PHONE_CONSOLE_KEY_ALIAS") as String?) ?: "qqmeow"
+val ksStorePass: String = (project.findProperty("PHONE_CONSOLE_STORE_PASSWORD") as String?) ?: "qqmeow123"
+val ksKeyPass: String = (project.findProperty("PHONE_CONSOLE_KEY_PASSWORD") as String?) ?: ksStorePass
 
 // 版本号的唯一来源（旧壳在 AndroidManifest.xml 里，这里搬到 build 脚本）
-val appVersionCode = 120
-val appVersionName = "3.2.0"
+val appVersionCode = 121
+val appVersionName = "3.2.1"
 
 android {
     namespace = "com.home.phoneconsole"
@@ -46,7 +35,7 @@ android {
     }
 
     signingConfigs {
-        if (hasKeystore) create("release") {
+        create("release") {
             storeFile = keystoreFile
             storePassword = ksStorePass
             keyAlias = ksAlias
@@ -64,7 +53,7 @@ android {
         release {
             isMinifyEnabled = false        // 与旧壳一致：不混淆，保证已验证逻辑/反射行为不变
             isShrinkResources = false
-            signingConfig = if (hasKeystore) signingConfigs.getByName("release") else null
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
