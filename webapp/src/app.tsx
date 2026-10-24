@@ -24,6 +24,8 @@ const ICON: Record<string, JSX.Element> = {
   up: <path d="M12 19V5M5.5 11.5 12 5l6.5 6.5" />,
   archive: <path d="M3 7h18v4H3zM5 11v9h14v-9M10 15h4" />,
   list: <path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01" />,
+  edit: <path d="M4 20h4L20 8l-4-4L4 16v4zM14 6l4 4" />,
+  copy: <><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h8" /></>,
   download: <path d="M12 3v12M7 10l5 5 5-5M4 21h16" />,
   target: <><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="2.5" /></>,
   lock: <><rect x="4.5" y="10.5" width="15" height="10" rx="2" /><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5" /></>,
@@ -501,6 +503,8 @@ function Composer(props: {
   onCommands?: () => void;
   pickToken?: number;
   queue?: { text: string; images: string[]; files: string[] }[];
+  draft?: { text?: string; images?: string[]; files?: string[]; token: number } | null;
+  onEditQueue?: (i: number) => void;
   onDropQueue?: (i: number) => void;
   onPromoteQueue?: (i: number) => void;
   onInsert?: (text: string, images: string[], files: string[]) => Promise<void>;
@@ -514,6 +518,23 @@ function Composer(props: {
   useEffect(() => {
     if (props.pickToken) fileInput.current?.click();
   }, [props.pickToken]);
+
+  /* 排队消息「重新编辑」：把内容放回输入框 */
+  useEffect(() => {
+    const d = props.draft;
+    if (!d || !d.token) return;
+    setText(d.text || '');
+    const imgs = (d.images || []).map((p, i) => ({
+      key: 'q-img-' + d.token + '-' + i, name: baseName(p), size: 0,
+      image: true, path: p, pct: 1,
+    }));
+    const files = (d.files || []).map((p, i) => ({
+      key: 'q-file-' + d.token + '-' + i, name: baseName(p), size: 0,
+      image: false, path: p, pct: 1,
+    }));
+    setAttach(imgs.concat(files));
+    requestAnimationFrame(() => ta.current?.focus());
+  }, [props.draft?.token]);
   const uploading = attach.some((a) => !a.path && !a.error);
   const ready = attach.filter((a) => a.path);
 
@@ -609,6 +630,10 @@ function Composer(props: {
             <span class="queue-chip" key={i}>
               <b>排队 {i + 1}</b>
               <span class="queue-text">{(q.text || (q.images.length || q.files.length ? '[附件]' : '')).slice(0, 24)}</span>
+              <button class="queue-edit" title="重新编辑"
+                onClick={() => props.onEditQueue?.(i)}>
+                <Icon name="edit" size={13} />
+              </button>
               <button class="queue-go" title="插队：立即中止当前回答并发送这条"
                 onClick={() => props.onPromoteQueue?.(i)}>
                 <Icon name="up" size={13} />
@@ -751,8 +776,29 @@ function CommandSheet(props: {
         </button>
         <button class="cmd-row" onClick={() => { window.open(REPO_URL + '/issues/new', '_blank'); props.onClose(); }}>
           <span class="cmd-ico"><Icon name="send" size={15} /></span>
-          <span class="cmd-name">反馈<em>feedback</em></span>
-          <span class="cmd-desc">去 GitHub 提 issue</span>
+          <span class="cmd-name">反馈给作者<em>feedback</em></span>
+          <span class="cmd-desc">GitHub issue（这个 App 的作者）</span>
+        </button>
+        <button class="cmd-row" onClick={async () => {
+          const native = (window as any).PhoneConsole;
+          const ver = native && native.appVersion ? native.appVersion() : 'web';
+          const info = [
+            '【手机远程控制台 诊断信息】',
+            '时间: ' + new Date().toISOString(),
+            '壳版本: ' + ver,
+            '地址: ' + location.origin,
+            '会话: ' + (props.active ? props.active.kind + ':' + props.active.id : '无'),
+            '计划: ' + (props.plan && (props.plan.todos || []).length ? (props.plan.todos || []).length + ' 项' : '无')
+              + (props.plan && props.plan.goal && props.plan.goal.objective ? ' / 有目标' : ''),
+            'UA: ' + navigator.userAgent,
+          ].join('\n');
+          try { await navigator.clipboard.writeText(info); toast('诊断信息已复制，可贴到 issue 里', 'ok'); }
+          catch (e) { toast('复制失败：' + (e as Error).message, 'err'); }
+          props.onClose();
+        }}>
+          <span class="cmd-ico"><Icon name="copy" size={15} /></span>
+          <span class="cmd-name">复制诊断信息<em>diagnostics</em></span>
+          <span class="cmd-desc">版本 / 会话 / 计划，附到 issue</span>
         </button>
         <button class="cmd-row dim" onClick={() => todo('compact')}>
           <span class="cmd-ico"><Icon name="archive" size={15} /></span>
@@ -1419,6 +1465,7 @@ export function App() {
   const [models, setModels] = useState<ModelsPayload | null>(null);
   const [modelOpen, setModelOpen] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
+  const [editDraft, setEditDraft] = useState<any>(null);
   const [pickToken, setPickToken] = useState(0);
   const [modelBusy, setModelBusy] = useState(false);
   const stateRef = useRef(s);
@@ -1589,6 +1636,14 @@ export function App() {
     await sendInsert(item.text, item.images, item.files);
   }, []);
 
+  /* 重新编辑排队消息：从队列取出，内容回填到输入框 */
+  const editQueue = useCallback((i: number) => {
+    const item = queueRef.current[i];
+    if (!item) return;
+    setQueue((q) => q.filter((_, idx) => idx !== i));
+    setEditDraft({ text: item.text || '', images: item.images || [], files: item.files || [], token: Date.now() });
+  }, []);
+
   const dropQueue = useCallback((i: number) => {
     setQueue((q) => q.filter((_, idx) => idx !== i));
     toast('已取消排队', 'ok');
@@ -1725,7 +1780,8 @@ export function App() {
         effortName={curEffortInfo?.name || models?.current?.reasoningEffort || ''}
         onOpenModel={() => setModelOpen(true)}
         queue={queue} onDropQueue={dropQueue} onInsert={sendInsert} onPromoteQueue={promoteQueue}
-        onCommands={() => setCmdOpen(true)} pickToken={pickToken} />
+        onCommands={() => setCmdOpen(true)} pickToken={pickToken}
+        draft={editDraft} onEditQueue={editQueue} />
       <CommandSheet open={cmdOpen} onClose={() => setCmdOpen(false)} plan={s.plan} active={s.active}
         onFile={() => setPickToken(Date.now())}
         onModel={() => setModelOpen(true)}

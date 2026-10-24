@@ -778,3 +778,29 @@ button { background: none; border: 0; cursor: pointer; }
 .cmd-name { flex: none; font-size: 14px; color: var(--text); display: inline-flex; align-items: baseline; gap: 6px; }
 .cmd-name em { font-style: normal; font-size: 10.5px; color: var(--faint); text-transform: lowercase; }
 .cmd-desc { flex: 1; min-width: 0; text-align: right; font-size: 11px; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+
+/* ══════════ 排队消息：与输入框同宽 + 重新编辑 ══════════ */
+.queue-row {
+  max-width: 720px; margin: 0 auto 6px;
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 0; overflow: visible;
+}
+.queue-chip {
+  width: 100%; max-width: none; box-sizing: border-box;
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 8px 8px 12px; border-radius: 12px;
+  border: 1px solid var(--line-2); background: var(--surface); font-size: 12.5px;
+}
+.queue-chip .queue-text {
+  flex: 1; min-width: 0; color: var(--muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.queue-edit {
+  flex: none; display: inline-grid; place-items: center;
+  width: 26px; height: 26px; border-radius: 7px;
+  color: var(--muted); background: rgba(127, 127, 127, .12);
+}
+.queue-edit:active { background: rgba(127, 127, 127, .22); }
+.queue-chip .queue-go { width: 26px; height: 26px; }
+.queue-chip .queue-x { flex: none; padding: 0 4px; }
