@@ -222,6 +222,22 @@ PIN 不对会 401；另外检查 DSH 是否登录（凭据过期需重新登录 
 - 人类：需求、交互设计、真机验收、问题反馈
 - AI：架构、编码、调试、构建发布、文档
 
+## ☕ 如果它帮到了你
+
+这个项目是一个人 + 一个 AI 在工作之余维护的：开源、免费、没有会员，也不放广告。
+
+如果它帮你省下了来回跑电脑的时间，或者让你在通勤路上也把活干完了，可以随缘请作者喝杯咖啡。
+金额随意，心意到就好；**不打赏也完全不影响使用**。
+
+所有支持会用在：真机测试机、隧道与服务器开销，以及把「已知限制」里的那些慢慢做完。
+
+<table>
+<tr>
+<td align=center><b>支付宝</b><br/><img src=docs/sponsor/alipay.jpg width=240 alt=支付宝收款码 /></td>
+<td align=center><b>微信支付</b><br/><img src=docs/sponsor/wechat.jpg width=240 alt=微信收款码 /></td>
+</tr>
+</table>
+
 ## License
 
 [MIT](LICENSE) © 2026 wuwei (wwu328763-netizen) & DeepSeek Harness
