@@ -249,3 +249,9 @@ export async function setArchived(kind: 'thread' | 'session', id: string, archiv
     body: JSON.stringify({ kind, id, archived }),
   });
 }
+
+
+/* ---- 刷新官网用量（电脑端拉 DeepSeek 接口写 CSV） ---- */
+export async function refreshUsage(): Promise<any> {
+  return json<any>('/api/usage/refresh', { method: 'POST', body: '{}' });
+}

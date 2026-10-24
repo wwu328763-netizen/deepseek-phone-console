@@ -312,7 +312,7 @@ def _pid_alive(pid):
 
 
 # natapp 隧道 authtoken（natapp.cn 免费隧道，流量不足时自动回退 cloudflared）
-NATAUTHToken = os.environ.get("NATAPP_TOKEN", "")
+NATAUTHToken = "4792ec3823689c15"
 _active_tunnel = None   # "natapp" | "cloudflared"
 
 
@@ -922,6 +922,33 @@ def fetch_official_usage_api(token):
 
 
 
+
+
+def refresh_official_usage(max_age_sec=1800, force=False):
+    """从 DeepSeek 官网接口刷新 api-latest.csv。
+
+    - 超过 max_age_sec 秒没更新才真正去拉（force=True 强制）
+    - 返回 {ok, updated, days, error}
+    """
+    import time as _t
+    d = official_usage_dir()
+    dst = d / "api-latest.csv"
+    if not force and dst.exists() and _t.time() - dst.stat().st_mtime < max_age_sec:
+        return {"ok": True, "updated": False, "reason": "fresh"}
+    token = load_usage_token()
+    if not token:
+        return {"ok": False, "updated": False, "error": "未配置官网 Token（电脑端面板 → 用量 → Token）"}
+    try:
+        data = fetch_official_usage_api(token)
+    except UsageAuthError as exc:
+        return {"ok": False, "updated": False, "error": str(exc)}
+    except Exception as exc:
+        return {"ok": False, "updated": False, "error": "请求失败：%s" % exc}
+    if not data or not data.get("per_day"):
+        return {"ok": False, "updated": False, "error": "官网接口没有返回数据"}
+    save_api_usage(data["per_day"])
+    return {"ok": True, "updated": True, "days": len(data["per_day"]),
+            "last": data.get("days", [None])[-1], "cost": data.get("cost")}
 
 
 def save_api_usage(per_day):

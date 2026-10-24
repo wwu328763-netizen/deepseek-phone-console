@@ -325,6 +325,11 @@ def load_official_usage(usage_dir):
                     cur[k] = max(cur[k], dd[k])
     if not merged:
         return None
+    # 官网接口会把「整个月」都返回，未来日期全是 0；不滤掉的话手机端「近 7 天」全是 0
+    today = time.strftime("%Y-%m-%d", time.localtime())
+    merged = {k: v for k, v in merged.items() if k <= today}
+    if not merged:
+        return None
     hit = sum(d["hit"] for d in merged.values())
     miss = sum(d["miss"] for d in merged.values())
     total_in = hit + miss

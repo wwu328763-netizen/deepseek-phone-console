@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import {
   ApiError, api, answerQuestion, getBalance, getInfo, getModels, uploadWithProgress, getPin, getUsage, listFiles,
   makeDir, setModel, setPin, stream, blobUrl, cachedBlobUrl, downloadRaw, getBg, saveBg,
-  getArchived, setArchived,
+  getArchived, setArchived, refreshUsage,
   type Item, type ModelInfo, type ModelsPayload, type Snap,
 } from './api';
 import {
@@ -703,12 +703,17 @@ function UsageSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [bal, setBal] = useState<any>(null);
   const [busy, setBusy] = useState(false);
 
-  const load = () => {
+  const load = async (refresh = false) => {
     setBusy(true);
-    Promise.all([
-      getUsage().then(setUsage).catch(() => null),
-      getBalance().then(setBal).catch(() => null),
-    ]).finally(() => setBusy(false));
+    try {
+      if (refresh) await refreshUsage().catch(() => null);
+      const [u, b] = await Promise.all([
+        getUsage().catch(() => null),
+        getBalance().catch(() => null),
+      ]);
+      if (u) setUsage(u);
+      if (b) setBal(b);
+    } finally { setBusy(false); }
   };
   useEffect(() => { if (open) load(); }, [open]);
 
@@ -733,7 +738,7 @@ function UsageSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
         <div class="sheet-head">
           <b>用量与计费</b>
           <div class="row-actions">
-            <button class="ghost-btn" onClick={load} title="刷新">{busy ? '…' : '刷新'}</button>
+            <button class="ghost-btn" onClick={() => load(true)} title="从 DeepSeek 官网刷新">{busy ? '…' : '刷新'}</button>
             <button class="ghost-btn" onClick={onClose}><Icon name="close" /></button>
           </div>
         </div>

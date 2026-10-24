@@ -1772,6 +1772,12 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if path == "/api/usage":
+            # CSV 超过 30 分钟没更新：后台拉一次官网用量（不阻塞本次响应）
+            try:
+                import console_core as _cc
+                _cc.refresh_official_usage(max_age_sec=1800)
+            except Exception:
+                pass
             self._json(self.app.get_usage())
             return
 
@@ -1936,6 +1942,11 @@ class Handler(BaseHTTPRequestHandler):
         if not self._authorized():
             self._discard_request_body()
             self._json({"error": "unauthorized"}, 401)
+            return
+
+        if path == "/api/usage/refresh":
+            import console_core as _cc
+            self._json(_cc.refresh_official_usage(force=True))
             return
 
         if path == "/api/archive":
