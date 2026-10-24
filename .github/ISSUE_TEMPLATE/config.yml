@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 使用问题 / 安装求助
+    url: https://github.com/wwu328763-netizen/deepseek-phone-console#常见问题
+    about: 先看 README 的常见问题（白屏 / Error 1033 / 连不上 / 签名冲突）
+  - name: 安全相关问题
+    url: https://github.com/wwu328763-netizen/deepseek-phone-console/blob/main/docs/SECURITY.md
+    about: PIN、隧道、文件读写边界相关说明

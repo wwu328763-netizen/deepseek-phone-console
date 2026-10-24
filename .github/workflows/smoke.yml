@@ -6,16 +6,51 @@ on:
   pull_request:
 
 jobs:
-  python-syntax:
+  python-and-assets:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Compile
-        run: python -m py_compile server.py console_core.py dsh_client.py sessions.py
-      - name: Assets exist
+
+      - name: Python 语法检查
+        run: python -m py_compile server.py console_core.py dsh_client.py sessions.py panel/host.py
+
+      - name: 前端产物存在
+        shell: pwsh
         run: |
-          if (!(Test-Path web/app/app.js)) { throw 'web/app/app.js missing' }
-          if (!(Test-Path dist)) { throw 'dist missing' }
+          foreach ($f in @('web/app/app.js', 'web/app/app.css', 'web/app/index.html', 'web/sw.js', 'web/manifest.webmanifest')) {
+            if (-not (Test-Path $f)) { throw "缺少 $f" }
+          }
+          if (-not (Test-Path 'dist')) { throw 'dist 目录不存在' }
+          Get-ChildItem dist | Select-Object Name, Length
+
+      - name: app-version.json 合法
+        shell: pwsh
+        run: |
+          $j = Get-Content web/app-version.json -Raw | ConvertFrom-Json
+          if (-not $j.versionCode -or -not $j.versionName) { throw 'app-version.json 缺字段' }
+          Write-Host "version: $($j.versionName) ($($j.versionCode))"
+
+      - name: README 图片引用全部存在
+        shell: pwsh
+        run: |
+          $readme = Get-Content README.md -Raw
+          $refs = [regex]::Matches($readme, 'screenshots/[^")]+\.png') | ForEach-Object { $_.Value } | Sort-Object -Unique
+          $missing = @()
+          foreach ($r in $refs) { if (-not (Test-Path $r)) { $missing += $r } }
+          if ($missing.Count -gt 0) { throw ("README 引用了不存在的图片: " + ($missing -join ', ')) }
+          Write-Host ("README 图片引用 OK: " + $refs.Count + " 张")
+
+      - name: 敏感文件未被提交
+        shell: pwsh
+        run: |
+          $bad = @('console_data\pin.txt', 'android-app\local.properties')
+          foreach ($p in $bad) {
+            if (Test-Path $p) { throw "不应提交: $p" }
+          }
+          $ks = Get-ChildItem -Path . -Filter '*.keystore' -Recurse -ErrorAction SilentlyContinue
+          if ($ks) { throw "不应提交 keystore: $($ks[0].FullName)" }
+          Write-Host '敏感文件检查通过'
