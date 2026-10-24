@@ -1296,3 +1296,25 @@ html, body { overflow: hidden !important; }
 #viewUsage .hint, #viewUsage .meta-row { white-space: normal; overflow-wrap: anywhere; }
 #viewUsage .meta-row { flex-wrap: wrap; row-gap: 6px; }
 #viewUsage .bento { max-width: 100%; }
+
+
+/* ══════════ 用量页：环形图 / 折线图 等高 + 标题重排 ══════════ */
+#viewUsage .donut-tile,
+#viewUsage .trend-tile { align-self: stretch; min-width: 0; }
+#viewUsage .donut-tile .legend { margin-top: auto; }
+#viewUsage .donut-tile .donut-wrap { min-height: 0; }
+
+#viewUsage .trend-head { margin-bottom: 2px; }
+#viewUsage .trend-cost { font-size: 12.5px; font-weight: 500; color: var(--text); letter-spacing: .02em; }
+#viewUsage .trend-sub {
+  font-size: 11px; color: var(--faint); letter-spacing: .02em;
+  margin: 0 0 8px; font-family: ui-monospace, Consolas, monospace;
+}
+
+/* 快捷键提示：默认隐藏，hover 才出现（挪到图内右下角） */
+#viewUsage .trend-hint {
+  top: auto; bottom: 2px; right: 8px;
+  opacity: 0; transition: opacity .16s;
+  color: var(--faint);
+}
+#viewUsage .trend-tile:hover .trend-hint { opacity: 1; }

@@ -73,7 +73,7 @@ function renderUsage(d) {
   const costAll = Number(t.costAll || 0);
   if (uq('#uCostRange')) uq('#uCostRange').textContent = uFmtMoney(costRange);
   if (uq('#uCostAvg')) {
-    uq('#uCostAvg').textContent = '日均 ' + uFmtMoney(costAvg) + ' · 累计 ' + uFmtMoney(costAll);
+    uq('#uCostAvg').textContent = '日均 ' + uFmtMoney(costAvg) + ' · 共 ' + uFmtMoney(costAll);
   }
 
   /* 环形图 */
@@ -271,7 +271,7 @@ function renderTrend(series) {
     'Ctrl+滚轮 缩放 · Alt+滚轮 平移 · 拖动/滚轮 平移 · 悬停看详情</div>';
 
   if (range) {
-    range.textContent = '· ' + view[0].d + ' ~ ' + view[m - 1].d + ' · ' +
+    range.textContent = view[0].d + ' ~ ' + view[m - 1].d + ' · ' +
       m + ' / ' + TREND.series.length + ' 天';
   }
   if (!box.dataset.bound) { bindTrend(box); box.dataset.bound = '1'; }
