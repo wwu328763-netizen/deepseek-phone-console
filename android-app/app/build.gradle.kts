@@ -27,8 +27,8 @@ val ksKeyPass: String = System.getenv("CONSOLE_KEY_PASSWORD")
     ?: (project.findProperty("CONSOLE_KEY_PASSWORD") as String?) ?: ksStorePass
 
 // 版本号的唯一来源（旧壳在 AndroidManifest.xml 里，这里搬到 build 脚本）
-val appVersionCode = 119
-val appVersionName = "3.1.9"
+val appVersionCode = 120
+val appVersionName = "3.2.0"
 
 android {
     namespace = "com.home.phoneconsole"

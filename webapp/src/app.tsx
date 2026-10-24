@@ -1061,7 +1061,12 @@ function Settings({ open, onClose, active }: { open: boolean; onClose: () => voi
             }}>
             返回登录界面
           </button>
-          <button class="outline-btn" onClick={() => { localStorage.removeItem('console_pin'); location.reload(); }}>
+          <button class="outline-btn" onClick={() => {
+              const app = (window as any).PhoneConsole;
+              if (app && typeof app.logout === 'function') { try { app.logout(); return; } catch (e) {} }
+              localStorage.removeItem('console_pin');
+              location.reload();
+            }}>
             清除 PIN 并退出
           </button>
           <a class="outline-btn" href="/legacy">打开旧版界面</a>

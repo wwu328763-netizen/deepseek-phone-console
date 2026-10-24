@@ -8,9 +8,9 @@
 
 桌面面板 + 手机网页 + Android App，三端一体。
 
-![version](https://img.shields.io/badge/version-3.1.9-4D6BFE)
+![version](https://img.shields.io/badge/version-3.2.0-4D6BFE)
 ![python](https://img.shields.io/badge/python-3.11%2B-3776AB)
-![android](https://img.shields.io/badge/android-APK%203.1.9-3DDC84)
+![android](https://img.shields.io/badge/android-APK%203.2.0-3DDC84)
 ![license](https://img.shields.io/badge/license-MIT-22a060)
 
 </div>
@@ -116,7 +116,7 @@ PIN:      12345678
 
 ### 2. 手机端
 
-- **APK**（推荐）：下载 [`dist/手机远程控制台-v3.1.9.apk`](dist/手机远程控制台-v3.1.9.apk)，
+- **APK**（推荐）：下载 [`dist/手机远程控制台-v3.2.0.apk`](dist/手机远程控制台-v3.2.0.apk)，
   安装后扫码或粘贴隧道地址 + PIN
 - **浏览器**：直接打开隧道地址，输入 PIN，可"添加到主屏幕"当 PWA 用
 
@@ -172,7 +172,13 @@ powershell -File android-app/scripts/build-and-publish.ps1
 
 ## 更新日志
 
-### v3.1.9（当前）
+### v3.2.0（当前）
+
+- 新增**原生「返回登录界面」**：APK 里清掉本地 PIN 并强制先显示 PIN 页（之前网页清 localStorage 会被壳自动注入 PIN 绕过）
+- 识别 **Cloudflare Error 1033**（隧道地址失效）：自动换成原生错误页，提供「重试 / 重新设置地址 / 返回登录界面」
+- 隧道地址变化后不用卸载 App，直接在设置里换地址重连
+
+### v3.1.9
 
 - 去掉 edge-to-edge：手机页面上下不再各留一条空白
 - 附件链路修复：上传 502（`session_workdir` 静态方法错位）

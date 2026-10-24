@@ -346,6 +346,22 @@ public class MainActivity extends Activity {
             bar.setProgress(0);
             if (loadingView != null) loadingView.setVisibility(View.GONE);
             fadeInWeb();
+            // Cloudflare 隧道失效时返回的是 HTTP 200 的自定义错误页，WebView 不会走 onReceivedError，
+            // 这里读一下页面文字，命中 1033 就换成原生错误页（带"重试 / 换地址 / 回登录页"）。
+            if (url != null && !url.startsWith("data:text/html")) {
+                view.evaluateJavascript(
+                        "(document.body?document.body.innerText:'').slice(0,300)",
+                        new android.webkit.ValueCallback<String>() {
+                            @Override
+                            public void onReceiveValue(String text) {
+                                String t = text == null ? "" : text.replace("\\n", " ");
+                                if (t.contains("Error 1033") || t.contains("Cloudflare Tunnel error")
+                                        || t.contains("unable to resolve it")) {
+                                    showErrorPage("隧道地址已失效（Cloudflare Error 1033）：电脑重启后地址会变，请重新扫码");
+                                }
+                            }
+                        });
+            }
         }
 
         // API < 23 的主框架错误回调
@@ -434,6 +450,7 @@ public class MainActivity extends Activity {
                 + "3. 地址/端口是否正确（默认 8787），电脑防火墙是否放行</p>"
                 + "<button onclick=\"PhoneConsole.reload()\">重试</button>"
                 + "<button class=\"sec\" onclick=\"PhoneConsole.toSettings()\">重新设置地址</button>"
+                + "<button class=\"sec\" onclick=\"PhoneConsole.logout()\">返回登录界面</button>"
                 + "</body></html>";
 
         if (errorView == null) {
@@ -478,6 +495,22 @@ public class MainActivity extends Activity {
                 @Override
                 public void run() {
                     startActivity(new Intent(MainActivity.this, SetupActivity.class));
+                }
+            });
+        }
+
+        /** 返回登录页：清掉保存的 PIN，并强制下次加载先显示PIN页 */
+        @JavascriptInterface
+        public void logout() {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        Prefs.save(MainActivity.this, Prefs.getHost(MainActivity.this), "");
+                        Prefs.setRequireLogin(MainActivity.this, true);
+                    } catch (Throwable ignored) {
+                    }
+                    loadConsole();
                 }
             });
         }
