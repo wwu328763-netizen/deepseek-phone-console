@@ -23,6 +23,10 @@ const ICON: Record<string, JSX.Element> = {
   bolt: <path d="M13 2 4.5 13.5H11l-1 8.5 8.5-11.5H12l1-8.5z" />,
   up: <path d="M12 19V5M5.5 11.5 12 5l6.5 6.5" />,
   archive: <path d="M3 7h18v4H3zM5 11v9h14v-9M10 15h4" />,
+  list: <path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01" />,
+  download: <path d="M12 3v12M7 10l5 5 5-5M4 21h16" />,
+  target: <><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="2.5" /></>,
+  lock: <><rect x="4.5" y="10.5" width="15" height="10" rx="2" /><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5" /></>,
   clip: <path d="M9 12.5V7a3 3 0 0 1 6 0v8a4.5 4.5 0 0 1-9 0V8" />,
   gear: <><circle cx="12" cy="12" r="3" /><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4" /></>,
   chevron: <path d="M9 6l6 6-6 6" />,
@@ -494,6 +498,8 @@ const COARSE_POINTER = typeof window !== 'undefined' && !!window.matchMedia
 function Composer(props: {
   disabled: boolean; running: boolean;
   modelName?: string; effortName?: string; onOpenModel?: () => void;
+  onCommands?: () => void;
+  pickToken?: number;
   queue?: { text: string; images: string[]; files: string[] }[];
   onDropQueue?: (i: number) => void;
   onPromoteQueue?: (i: number) => void;
@@ -505,6 +511,9 @@ function Composer(props: {
   const [attach, setAttach] = useState<Attachment[]>([]);
   const ta = useRef<HTMLTextAreaElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (props.pickToken) fileInput.current?.click();
+  }, [props.pickToken]);
   const uploading = attach.some((a) => !a.path && !a.error);
   const ready = attach.filter((a) => a.path);
 
@@ -662,6 +671,10 @@ function Composer(props: {
           </div>
         </div>
         <div class="composer-bar">
+          <button class="composer-btn" title="命令（/）" disabled={props.disabled}
+            onClick={() => props.onCommands?.()}>
+            <span class="slash-glyph">/</span>
+          </button>
           <button class="composer-btn" title="添加图片/文件" disabled={props.disabled}
             onClick={() => fileInput.current?.click()}>
             <Icon name="clip" />
@@ -677,6 +690,132 @@ function Composer(props: {
         </div>
         </div>
       </div>
+  );
+}
+
+/* ────────────────────────── 斜杠命令（对齐 DSH 菜单） ────────────────────────── */
+const REPO_URL = 'https://github.com/wwu328763-netizen/deepseek-phone-console';
+
+function CommandSheet(props: {
+  open: boolean; onClose: () => void; plan: any; active: any;
+  onFile: () => void; onModel: () => void; onExport: () => void;
+}) {
+  if (!props.open) return null;
+  const hasGoal = !!(props.plan && props.plan.goal && props.plan.goal.objective);
+  const hasTodos = !!(props.plan && (props.plan.todos || []).length);
+  const todo = (ev: string, fn?: () => void) => {
+    if (!fn) { toast('这个指令需要在电脑端 DSH 里执行', 'err'); return; }
+    fn();
+    props.onClose();
+  };
+  return (
+    <div class="sheet-wrap">
+      <div class="sheet-mask" onClick={props.onClose} />
+      <div class="sheet">
+        <div class="sheet-grab" />
+        <div class="sheet-head"><b>命令</b><button class="ghost-btn" onClick={props.onClose}><Icon name="close" /></button></div>
+        <div class="cmd-group">添加</div>
+        <button class="cmd-row" onClick={() => todo('file', props.onFile)}>
+          <span class="cmd-ico"><Icon name="clip" size={15} /></span>
+          <span class="cmd-name">文件<em>file</em></span>
+          <span class="cmd-desc">上传图片或文档</span>
+        </button>
+        {hasTodos ? (
+          <button class="cmd-row" onClick={() => todo('plan', () => window.dispatchEvent(new CustomEvent('plan:toggle', { detail: true })))}>
+            <span class="cmd-ico"><Icon name="list" size={15} /></span>
+            <span class="cmd-name">计划<em>plan</em></span>
+            <span class="cmd-desc">查看当前计划进度</span>
+          </button>
+        ) : null}
+        {hasGoal ? (
+          <button class="cmd-row" onClick={() => todo('goal', () => window.dispatchEvent(new CustomEvent('plan:toggle', { detail: true })))}>
+            <span class="cmd-ico"><Icon name="target" size={15} /></span>
+            <span class="cmd-name">目标<em>goal</em></span>
+            <span class="cmd-desc">查看长期任务目标</span>
+          </button>
+        ) : null}
+        <div class="cmd-group">指令</div>
+        <button class="cmd-row" onClick={() => todo('model', props.onModel)}>
+          <span class="cmd-ico"><Icon name="gear" size={15} /></span>
+          <span class="cmd-name">模型<em>model</em></span>
+          <span class="cmd-desc">切换本会话模型与强度</span>
+        </button>
+        <button class="cmd-row" onClick={() => todo('export', props.onExport)}>
+          <span class="cmd-ico"><Icon name="download" size={15} /></span>
+          <span class="cmd-name">导出<em>export</em></span>
+          <span class="cmd-desc">把当前对话导出为 JSON</span>
+        </button>
+        <button class="cmd-row" onClick={() => { window.open(REPO_URL + '/issues/new', '_blank'); props.onClose(); }}>
+          <span class="cmd-ico"><Icon name="send" size={15} /></span>
+          <span class="cmd-name">反馈<em>feedback</em></span>
+          <span class="cmd-desc">去 GitHub 提 issue</span>
+        </button>
+        <button class="cmd-row dim" onClick={() => todo('compact')}>
+          <span class="cmd-ico"><Icon name="archive" size={15} /></span>
+          <span class="cmd-name">压缩<em>compact</em></span>
+          <span class="cmd-desc">电脑端 DSH 里执行</span>
+        </button>
+        <button class="cmd-row dim" onClick={() => todo('permission')}>
+          <span class="cmd-ico"><Icon name="lock" size={15} /></span>
+          <span class="cmd-name">权限<em>permission</em></span>
+          <span class="cmd-desc">电脑端 DSH 里执行</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ────────────────────────── 计划 / 目标（DSH 镜像） ────────────────────────── */
+const PLAN_OPEN_KEY = 'console_plan_open';
+
+function PlanBar({ plan }: { plan: any }) {
+  const [open, setOpen] = useState<boolean>(() => localStorage.getItem(PLAN_OPEN_KEY) !== '0');
+  const todos: any[] = (plan && plan.todos) || [];
+  const goal = plan && plan.goal ? plan.goal : null;
+  if (!todos.length && !(goal && goal.objective)) return null;
+  const done = todos.filter((t) => t.status === 'completed').length;
+  const cur = todos.find((t) => t.status === 'in_progress');
+  useEffect(() => {
+    const onOpen = (e: any) => {
+      const want = e?.detail;
+      const v = want === undefined ? !open : !!want;
+      setOpen(v);
+      localStorage.setItem(PLAN_OPEN_KEY, v ? '1' : '0');
+    };
+    window.addEventListener('plan:toggle', onOpen as any);
+    return () => window.removeEventListener('plan:toggle', onOpen as any);
+  }, [open]);
+
+  const toggle = () => {
+    const v = !open;
+    setOpen(v);
+    localStorage.setItem(PLAN_OPEN_KEY, v ? '1' : '0');
+  };
+  return (
+    <div class={'plan-bar' + (open ? ' open' : '')}>
+      <button class="plan-head" onClick={toggle}>
+        <Icon name="list" size={14} />
+        <span class="plan-title">{goal && goal.objective ? '目标' : '计划'}</span>
+        <span class="plan-progress">{todos.length ? done + '/' + todos.length : ''}</span>
+        <span class="plan-cur">{cur ? cur.content : (todos.length && done === todos.length ? '全部完成' : '')}</span>
+        <span class="plan-arrow">{open ? '▾' : '▸'}</span>
+      </button>
+      {open ? (
+        <div class="plan-body">
+          {goal && goal.objective ? <div class="plan-goal">{goal.objective}</div> : null}
+          <div class="plan-list">
+            {todos.map((t, i) => (
+              <div class={'plan-item ' + (t.status || 'pending')} key={i}>
+                <span class="plan-ico">
+                  {t.status === 'completed' ? '✓' : t.status === 'in_progress' ? '●' : '○'}
+                </span>
+                <span class="plan-text">{t.content}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -1275,6 +1414,8 @@ export function App() {
   /* 模型 / 强度（输入栏） */
   const [models, setModels] = useState<ModelsPayload | null>(null);
   const [modelOpen, setModelOpen] = useState(false);
+  const [cmdOpen, setCmdOpen] = useState(false);
+  const [pickToken, setPickToken] = useState(0);
   const [modelBusy, setModelBusy] = useState(false);
   const stateRef = useRef(s);
   stateRef.current = s;
@@ -1364,7 +1505,7 @@ export function App() {
     setDrawer(false);
     requestAnimationFrame(() => scrollToBottom(false));
     const snap = await api.snapshot(kind, id).catch(() => null);
-    if (snap) set({ items: withEcho(snap.items || []), running: !!snap.running, status: snap.status || '' });
+    if (snap) set({ items: withEcho(snap.items || []), running: !!snap.running, status: snap.status || '', plan: (snap as any).plan || null });
     stopStream.current = stream(kind, id, (ev) => {
       if (ev.type === 'session.snapshot') {
         set({ items: withEcho(ev.items || []), running: !!ev.session?.running, status: ev.session?.status || '' });
@@ -1381,7 +1522,7 @@ export function App() {
     pollTimer.current = window.setInterval(async () => {
       const d = await api.snapshot(kind, id).catch(() => null);
       if (!d) return;
-      set({ running: !!d.running, status: d.status || '', items: withEcho(d.items || []) });
+      set({ running: !!d.running, status: d.status || '', items: withEcho(d.items || []), plan: (d as any).plan || null });
     }, 3000);
   }, []);
 
@@ -1573,12 +1714,26 @@ export function App() {
           {unread > 0 ? '新消息 ' + unread : '回到底部'}
         </button>
       ) : null}
+      <PlanBar plan={s.plan} />
       <Composer disabled={!s.active} running={s.running} onSend={send} onStop={stop} upload={upload}
         modelName={allModelInfos.find((m) => m.id === (models?.current?.model || ''))?.name
           || models?.current?.model || ''}
         effortName={curEffortInfo?.name || models?.current?.reasoningEffort || ''}
         onOpenModel={() => setModelOpen(true)}
-        queue={queue} onDropQueue={dropQueue} onInsert={sendInsert} onPromoteQueue={promoteQueue} />
+        queue={queue} onDropQueue={dropQueue} onInsert={sendInsert} onPromoteQueue={promoteQueue}
+        onCommands={() => setCmdOpen(true)} pickToken={pickToken} />
+      <CommandSheet open={cmdOpen} onClose={() => setCmdOpen(false)} plan={s.plan} active={s.active}
+        onFile={() => setPickToken(Date.now())}
+        onModel={() => setModelOpen(true)}
+        onExport={() => {
+          const data = { at: new Date().toISOString(), active: s.active, plan: s.plan, items: s.items };
+          const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = 'phone-console-' + (s.active ? s.active.id.slice(0, 8) : 'export') + '.json';
+          a.click();
+          setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+        }} />
       <Drawer open={drawer} onClose={() => setDrawer(false)} onPick={open}
         onNew={() => { setDrawer(false); setNewOpen(true); }}
         active={s.active ? s.active.kind + ':' + s.active.id : null} />

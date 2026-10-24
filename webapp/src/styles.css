@@ -742,3 +742,39 @@ button { background: none; border: 0; cursor: pointer; }
 .usage-row { display: flex; gap: 10px; align-items: center; padding: 7px 2px; border-bottom: 1px solid var(--line); font-size: 12.5px; }
 .usage-date { width: 46px; color: var(--muted); flex: none; }
 .usage-muted { color: var(--faint); }
+
+
+/* ══════════ 计划 / 目标（输入框上方） ══════════ */
+.plan-bar {
+  margin: 0 10px 6px; border: 1px solid var(--line-2); border-radius: 12px;
+  background: var(--surface); overflow: hidden;
+}
+.plan-head { width: 100%; display: flex; align-items: center; gap: 7px; padding: 9px 12px; text-align: left; }
+.plan-title { font-size: 12.5px; font-weight: 600; color: var(--text); flex: none; }
+.plan-progress { font-size: 11px; color: var(--accent); font-variant-numeric: tabular-nums; flex: none; }
+.plan-cur { flex: 1; min-width: 0; font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plan-arrow { flex: none; color: var(--faint); font-size: 10px; }
+.plan-body { border-top: 1px solid var(--line); padding: 8px 12px 10px; max-height: 34vh; overflow: auto; }
+.plan-goal { font-size: 11.5px; color: var(--muted); line-height: 1.5; margin-bottom: 6px; }
+.plan-item { display: flex; gap: 7px; align-items: flex-start; padding: 3px 0; font-size: 12.5px; }
+.plan-ico { flex: none; width: 14px; text-align: center; color: var(--faint); }
+.plan-item.completed .plan-ico { color: var(--accent); }
+.plan-item.completed .plan-text { color: var(--muted); text-decoration: line-through; text-decoration-color: rgba(127,127,127,.45); }
+.plan-item.in_progress .plan-ico { color: var(--accent); }
+.plan-item.in_progress .plan-text { color: var(--text); font-weight: 500; }
+.plan-text { flex: 1; min-width: 0; line-height: 1.45; word-break: break-word; }
+
+
+/* ══════════ 斜杠命令菜单 ══════════ */
+.slash-glyph { font-size: 15px; font-weight: 600; line-height: 1; color: var(--muted); }
+.cmd-group { font-size: 11px; color: var(--faint); margin: 10px 4px 4px; letter-spacing: .04em; }
+.cmd-row {
+  width: 100%; display: flex; align-items: center; gap: 10px;
+  padding: 11px 10px; border-radius: 10px; text-align: left;
+}
+.cmd-row:active { background: rgba(127, 127, 127, .14); }
+.cmd-row.dim { opacity: .5; }
+.cmd-ico { flex: none; width: 22px; display: grid; place-items: center; color: var(--muted); }
+.cmd-name { flex: none; font-size: 14px; color: var(--text); display: inline-flex; align-items: baseline; gap: 6px; }
+.cmd-name em { font-style: normal; font-size: 10.5px; color: var(--faint); text-transform: lowercase; }
+.cmd-desc { flex: 1; min-width: 0; text-align: right; font-size: 11px; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

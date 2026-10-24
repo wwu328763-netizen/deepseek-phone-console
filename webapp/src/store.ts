@@ -13,6 +13,7 @@ export interface State {
   sessions: Session[];
   active: { kind: 'thread' | 'session'; id: string; title: string } | null;
   items: Item[];
+  plan: any;          // DSH 的计划/目标（输入框上方镜像）
   running: boolean;
   status: string;
   busy: boolean;             // 发送中/等待首帧
@@ -35,6 +36,7 @@ export const state: State = {
   sessions: [],
   active: null,
   items: [],
+  plan: null,
   running: false,
   status: '',
   busy: false,

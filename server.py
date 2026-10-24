@@ -1368,6 +1368,43 @@ class Console:
         tokens = (stats or {}).get("tokens")
         return {"session": stats, "money": self.money(tokens), "at": now_iso()}
 
+    def session_plan(self, sid):
+        """DSH 的计划 / 待办 / 目标（电脑端输入框上方那块内容），供手机端镜像显示。"""
+        if not sid:
+            return None
+        try:
+            rows = self.dsh.list_sessions(cache_seconds=2.0)
+        except Exception:
+            return None
+        for row in rows:
+            if row.get("sessionId") != sid:
+                continue
+            vals = (row.get("projections") or {}).get("values") or {}
+            todos = []
+            for t in (vals.get("todos") or []):
+                if not isinstance(t, dict):
+                    continue
+                todos.append({"content": str(t.get("content") or ""),
+                              "status": str(t.get("status") or "pending")})
+            goal = vals.get("goal") or None
+            goal_obj = None
+            if isinstance(goal, dict):
+                goal_obj = goal.get("goal") if isinstance(goal.get("goal"), dict) else goal
+            objective = (goal_obj or {}).get("objective") if goal_obj else None
+            plan = vals.get("plan") or {}
+            out = {
+                "todos": todos,
+                "goal": {"objective": objective,
+                         "id": (goal_obj or {}).get("id") if goal_obj else None,
+                         "revision": (goal_obj or {}).get("revision") if goal_obj else None},
+                "active": bool((plan or {}).get("active")),
+                "pending": bool((plan or {}).get("pending")),
+            }
+            if not todos and not objective:
+                return None
+            return out
+        return None
+
     def session_detail(self, sid):
         state = self.get_thread(sid)
         detail = None
@@ -1388,6 +1425,11 @@ class Console:
             detail["status"] = self.status(sid)
         except Exception:
             detail["status"] = None
+        try:
+            detail["plan"] = self.session_plan(
+                state.dsh_session_id if state is not None else sid)
+        except Exception:
+            detail["plan"] = None
         return detail
 
     def continue_session(self, sid, prompt, images=None, files=None):
@@ -1837,6 +1879,10 @@ class Handler(BaseHTTPRequestHandler):
                     pub["items"] = self.app.normalize_user_items(pub.get("items") or [], state.workdir)
                 except Exception:
                     pass
+                try:
+                    pub["plan"] = self.app.session_plan(state.dsh_session_id or state.id)
+                except Exception:
+                    pub["plan"] = None
                 self._json(pub)
                 return
             action = parts[4]
