@@ -1,0 +1,17 @@
+{
+  "name": "deepseek-phone-console-webapp",
+  "private": true,
+  "version": "3.2.0",
+  "description": "手机端 UI（Preact + TypeScript），构建产物输出到 ../web/app",
+  "scripts": {
+    "build": "powershell -NoProfile -ExecutionPolicy Bypass -File build.ps1",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "esbuild": "^0.21.5",
+    "typescript": "~5.4.5"
+  },
+  "dependencies": {
+    "preact": "^10.20.2"
+  }
+}

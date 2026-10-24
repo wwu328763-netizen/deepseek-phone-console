@@ -146,8 +146,8 @@ phone-console/
 见 [`docs/BUILD.md`](docs/BUILD.md)。
 
 ```powershell
-powershell -File webapp/build.ps1                 # 前端
-powershell -File panel/build.ps1                  # 桌面面板
+cd webapp; npm install; npm run build              # 前端（产物到 web/app/）
+powershell -File panel/build.ps1                   # 桌面面板（需 pywebview + pyinstaller）
 powershell -File android-app/scripts/build-and-publish.ps1   # APK（需 JDK17 + Android SDK）
 ```
 

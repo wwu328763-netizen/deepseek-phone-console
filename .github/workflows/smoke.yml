@@ -15,8 +15,19 @@ jobs:
         with:
           python-version: '3.11'
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Python 语法检查
         run: python -m py_compile server.py console_core.py dsh_client.py sessions.py panel/host.py
+
+      - name: 前端依赖安装 + 构建
+        shell: pwsh
+        run: |
+          npm --prefix webapp install --no-audit --no-fund --loglevel=error
+          pwsh -NoProfile -ExecutionPolicy Bypass -File webapp/build.ps1
+          Get-Item web/app/app.js, web/app/app.css | Select-Object Name, Length
 
       - name: 前端产物存在
         shell: pwsh
