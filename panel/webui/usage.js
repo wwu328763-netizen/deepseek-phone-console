@@ -271,7 +271,7 @@ function renderTrend(series) {
     'Ctrl+滚轮 缩放 · Alt+滚轮 平移 · 拖动/滚轮 平移 · 悬停看详情</div>';
 
   if (range) {
-    range.textContent = view[0].d + ' ~ ' + view[m - 1].d + ' · ' +
+    range.textContent = '· ' + view[0].d + ' ~ ' + view[m - 1].d + ' · ' +
       m + ' / ' + TREND.series.length + ' 天';
   }
   if (!box.dataset.bound) { bindTrend(box); box.dataset.bound = '1'; }

@@ -1274,3 +1274,7 @@ html, body { overflow: hidden !important; }
 /* 所有视图的 bento 都锁宽度，避免各视图出现同类问题 */
 .view > .bento { width: 100%; max-width: 1216px; margin: 0 auto; }
 .view { align-items: stretch; }
+
+
+/* 用量页：统计卡按内容高度（避免和右侧高卡片同高、下方留一大块空白） */
+#viewUsage .tile.stat { align-self: start; }
