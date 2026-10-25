@@ -17,11 +17,11 @@
 
 ---
 
-## 🎬 演示视频（2 分 20 秒）
+## 🎬 演示视频（2 分 55 秒 · 完整版）
 
 [![产品介绍视频](screenshots/00-产品介绍视频封面.png)](https://github.com/wwu328763-netizen/deepseek-phone-console/releases/download/v3.2.2/phone-console-intro-1080p.mp4)
 
-手机与电脑双向接续的完整实操：连接 → 电脑端补一句 → 手机接着看 → 手机排队/改稿 → 发图片 → 用量页。
+完整实操：连接 → 双端接续 → 排队/改稿 → 发图片 → 执行清单 → 用量与日志；含 DSH 原理说明（会话同步 / SSE）。
 
 - 视频（1080p / H.264）：[phone-console-intro-1080p.mp4](https://github.com/wwu328763-netizen/deepseek-phone-console/releases/download/v3.2.2/phone-console-intro-1080p.mp4)
 - 字幕：[phone-console-intro.srt](https://github.com/wwu328763-netizen/deepseek-phone-console/releases/download/v3.2.2/phone-console-intro.srt)
